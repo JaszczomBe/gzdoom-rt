@@ -36,8 +36,10 @@
 /build__
 /build-vscode-linux
 /build-vscode-linux-rt
+/build-cmake-tools-fresh
 /build-cmake-linux
 /build-cmake-linux-rt
+/build-rt
 /build-rtgl-linux
 /build-zmusic-linux
 /rt
