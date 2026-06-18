@@ -2012,4 +2012,11 @@ static std::pair< int, int > GetFullscreen()
 #endif
 }
 
+#else
+
+DEFINE_ACTION_FUNCTION(DListMenuItemSelectable, IsRtxRemix2)
+{
+	ACTION_RETURN_BOOL(false);
+}
+
 #endif // HAVE_RT

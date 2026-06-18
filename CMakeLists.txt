@@ -43,8 +43,12 @@ if (NOT VCPKG_TOOLCHAIN)
 	set(VCPKG_MANIFEST_FEATURES)
 endif()
 
-
-option( HAVE_RT "Enable RayTracing support" ON )
+if( WIN32 )
+	set( HAVE_RT_DEFAULT ON )
+else()
+	set( HAVE_RT_DEFAULT OFF )
+endif()
+option( HAVE_RT "Enable RayTracing support" ${HAVE_RT_DEFAULT} )
 
 
 if( HAVE_RT )

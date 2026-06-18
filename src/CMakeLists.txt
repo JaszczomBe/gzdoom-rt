@@ -327,13 +327,22 @@ endif()
 
 # ZMUSIC
 
-if( MSVC )
-	find_package( ZMusic )
-else()
-	find_package( ZMusic REQUIRED )
-endif()
+find_package( ZMusic )
 
 message("Building for target architecture: ${TARGET_ARCHITECTURE}")
+
+if( NOT ZMUSIC_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../libraries/ZMusic/CMakeLists.txt" )
+	message(STATUS "Using vendored ZMusic from libraries/ZMusic")
+	set( ZMUSIC_INSTALL OFF CACHE BOOL "Install ZMusic" FORCE )
+	add_subdirectory(
+		"${CMAKE_CURRENT_SOURCE_DIR}/../libraries/ZMusic"
+		"${CMAKE_BINARY_DIR}/libraries/ZMusic"
+		EXCLUDE_FROM_ALL )
+	set( ZMUSIC_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libraries/ZMusic/include" )
+	set( ZMUSIC_LIBRARIES ZMusic::zmusic )
+	set( ZMUSIC_FOUND TRUE )
+	set( ZMUSIC_VENDORED TRUE )
+endif()
 
 if( MSVC AND NOT ZMUSIC_FOUND )
 	# Use prebuilt library
@@ -348,6 +357,10 @@ if( MSVC AND NOT ZMUSIC_FOUND )
 		link_directories( ${ZMUSIC_ROOT_PATH}/32bit )
 	endif()
 	set( ZMUSIC_FOUND TRUE )
+endif()
+
+if( NOT ZMUSIC_FOUND )
+	message(FATAL_ERROR "Could NOT find ZMusic. Install ZMusic or initialize libraries/ZMusic.")
 endif()
 
 
@@ -1394,11 +1407,21 @@ if( NOT WIN32 AND NOT APPLE )
 		COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/link-make
 		COMMAND ${CMAKE_CURRENT_BINARY_DIR}/link-make )
 	IF ("${INSTALL_RPATH}" STREQUAL "")
-		set_target_properties(zdoom PROPERTIES
-			#allow libzmusic.so.1 library in same folder as executable at runtime
-			INSTALL_RPATH "\$ORIGIN"
-			BUILD_WITH_INSTALL_RPATH ON
-		)
+		if( ZMUSIC_VENDORED )
+			set_target_properties(zdoom PROPERTIES
+				# allow libzmusic.so.1 in the build-tree ZMusic output at runtime
+				BUILD_RPATH "${CMAKE_BINARY_DIR}/libraries/ZMusic/source"
+				# allow libzmusic.so.1 library in same folder as executable after packaging
+				INSTALL_RPATH "\$ORIGIN"
+				BUILD_WITH_INSTALL_RPATH OFF
+			)
+		else()
+			set_target_properties(zdoom PROPERTIES
+				# allow libzmusic.so.1 library in same folder as executable at runtime
+				INSTALL_RPATH "\$ORIGIN"
+				BUILD_WITH_INSTALL_RPATH ON
+			)
+		endif()
 	endif()
 endif()
 

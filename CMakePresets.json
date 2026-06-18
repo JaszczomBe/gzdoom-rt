@@ -1,0 +1,46 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "linux-non-rt",
+      "displayName": "Linux non-RT",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-cmake-linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "HAVE_RT": "OFF",
+        "ZDOOM_EXE_NAME": "gzdoom",
+        "PK3_QUIET_ZIPDIR": "ON"
+      }
+    },
+    {
+      "name": "linux-rt-probe",
+      "displayName": "Linux RT probe",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-cmake-linux-rt",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "HAVE_RT": "ON",
+        "ZDOOM_EXE_NAME": "gzdoom",
+        "PK3_QUIET_ZIPDIR": "ON"
+      },
+      "environment": {
+        "RTGL1_SDK_PATH": "${sourceDir}/libraries/RTGL"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-non-rt",
+      "displayName": "Build Linux non-RT",
+      "configurePreset": "linux-non-rt"
+    },
+    {
+      "name": "linux-rt-probe",
+      "displayName": "Build Linux RT probe",
+      "configurePreset": "linux-rt-probe"
+    }
+  ]
+}
