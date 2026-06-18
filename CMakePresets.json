@@ -15,6 +15,21 @@
       }
     },
     {
+      "name": "rtgl-linux",
+      "displayName": "RTGL Linux",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-rtgl-linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "RG_WITH_SURFACE_XLIB": "ON",
+        "RG_WITH_SURFACE_WAYLAND": "OFF",
+        "RG_WITH_DX12": "OFF",
+        "RG_WITH_NATIVE_DLSS": "OFF",
+        "RG_WITH_IMGUI": "OFF",
+        "RG_WITH_EXAMPLES": "OFF"
+      }
+    },
+    {
       "name": "linux-rt-probe",
       "displayName": "Linux RT probe",
       "generator": "Ninja",
@@ -27,7 +42,8 @@
         "PK3_QUIET_ZIPDIR": "ON"
       },
       "environment": {
-        "RTGL1_SDK_PATH": "${sourceDir}/libraries/RTGL"
+        "RTGL1_SDK_PATH": "${sourceDir}/libraries/RTGL",
+        "RTGL1_LIBRARY_PATH": "${sourceDir}/build-rtgl-linux/libRTGL1.so"
       }
     }
   ],
@@ -36,6 +52,11 @@
       "name": "linux-non-rt",
       "displayName": "Build Linux non-RT",
       "configurePreset": "linux-non-rt"
+    },
+    {
+      "name": "rtgl-linux",
+      "displayName": "Build RTGL Linux",
+      "configurePreset": "rtgl-linux"
     },
     {
       "name": "linux-rt-probe",

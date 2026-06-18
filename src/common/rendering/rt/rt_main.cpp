@@ -29,6 +29,10 @@
 #include "image.h"
 
 #include "rt_state.h"
+#include "rt_video.h"
+#ifndef _WIN32
+    #include "rt_linux_loader.h"
+#endif
 
 #ifdef _WIN32
     #include <shellapi.h>
@@ -39,6 +43,8 @@
 #include <variant>
 #include <ranges>
 #include <unordered_set>
+#include <cstdlib>
+#include <cstdio>
 
 
 //
@@ -123,7 +129,11 @@ namespace cvar
     RT_CVAR( rt_vsync,                  false,  "vertical synchronization to prevent tearing" )
     RT_CVAR( rt_hdr,                    false,  "enable HDR output for display" )
 
+#ifdef _WIN32
     RT_CVAR( rt_fluid,                  true,   "enable fluid simulation (blood)" )
+#else
+    RT_CVAR( rt_fluid,                  false,  "enable fluid simulation (blood)" )
+#endif
     RT_CVAR( rt_fluid_budget,         100000,   "(APPLIED ONLY after disabling rt_fluid) fluid simulation particle budget " )
     RT_CVAR( rt_fluid_pradius,          0.1f,   "(APPLIED ONLY after disabling rt_fluid) radis of one particle (in meters) for fluid simulation" )
     RT_CVAR( rt_fluid_gravity_x,        0.f,    "gravity vector for fluid (horizontal, X), in m/s^2" )
@@ -2028,6 +2038,188 @@ std::atomic< HWND > g_msgbox_parent{};
 
 
 
+std::string RT_InitErrorMessage(RgResult r, bool isdebug, const char* remixdll)
+{
+    auto msg = std::string{ "RgResult code: " };
+
+    switch( r )
+    {
+        case RG_RESULT_CANT_FIND_DYNAMIC_LIBRARY:
+            msg = remixdll  ? "Can't load Remix Renderer DLLs"
+                  : isdebug ? "Can't find RTGL library. Checked RTGL1_LIBRARY_PATH, build-rtgl-linux/libRTGL1.so, rt/bin/debug/libRTGL1.so, rt/bin/libRTGL1.so, and libRTGL1.so"
+                            : "Can't find RTGL library. Checked RTGL1_LIBRARY_PATH, build-rtgl-linux/libRTGL1.so, rt/bin/RTGL1.dll, rt/bin/libRTGL1.so, and libRTGL1.so";
+            break;
+        case RG_RESULT_CANT_FIND_ENTRY_FUNCTION_IN_DYNAMIC_LIBRARY:
+            msg =
+                remixdll  ? "Can't find rgCreateInstance function in Remix Renderer wrapper DLL"
+                : isdebug ? "Can't find rgCreateInstance function in RTGL debug library"
+                          : "Can't find rgCreateInstance function in RTGL library";
+            break;
+
+        // clang-format off
+        case RG_RESULT_NOT_INITIALIZED:                     msg += "RG_RESULT_NOT_INITIALIZED";                     break;
+        case RG_RESULT_ALREADY_INITIALIZED:                 msg += "RG_RESULT_ALREADY_INITIALIZED";                 break;
+        case RG_RESULT_GRAPHICS_API_ERROR:                  msg += "RG_RESULT_GRAPHICS_API_ERROR";                  break;
+        case RG_RESULT_INTERNAL_ERROR:                      msg += "RG_RESULT_INTERNAL_ERROR";                      break;
+        case RG_RESULT_CANT_FIND_SUPPORTED_PHYSICAL_DEVICE: msg += "RG_RESULT_CANT_FIND_SUPPORTED_PHYSICAL_DEVICE"; break;
+        case RG_RESULT_FRAME_WASNT_STARTED:                 msg += "RG_RESULT_FRAME_WASNT_STARTED";                 break;
+        case RG_RESULT_FRAME_WASNT_ENDED:                   msg += "RG_RESULT_FRAME_WASNT_ENDED";                   break;
+        case RG_RESULT_WRONG_FUNCTION_CALL:                 msg += "RG_RESULT_WRONG_FUNCTION_CALL";                 break;
+        case RG_RESULT_WRONG_FUNCTION_ARGUMENT:             msg += "RG_RESULT_WRONG_FUNCTION_ARGUMENT";             break;
+        case RG_RESULT_WRONG_STRUCTURE_TYPE:                msg += "RG_RESULT_WRONG_STRUCTURE_TYPE";                break;
+        case RG_RESULT_ERROR_CANT_FIND_HARDCODED_RESOURCES: msg += "RG_RESULT_ERROR_CANT_FIND_HARDCODED_RESOURCES"; break;
+        case RG_RESULT_ERROR_CANT_FIND_SHADER:              msg += "RG_RESULT_ERROR_CANT_FIND_SHADER";              break;
+        case RG_RESULT_ERROR_MEMORY_ALIGNMENT:              msg += "RG_RESULT_ERROR_MEMORY_ALIGNMENT";              break;
+        case RG_RESULT_ERROR_NO_VULKAN_EXTENSION:           msg += "RG_RESULT_ERROR_NO_VULKAN_EXTENSION";           break;
+            // clang-format on
+
+        default: msg += std::to_string( r ); break;
+    }
+
+    return msg;
+}
+
+void RT_InitInstance(RgWin32SurfaceCreateInfo* win32Info, void* xlibDisplay, unsigned long xlibWindow)
+{
+    rt = RgInterface{};
+
+    auto info = RgInstanceCreateInfo
+    {
+        .sType = RG_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pNext = NULL,
+
+        .version = RG_RTGL_VERSION_API, .sizeOfRgInterface = sizeof( RgInterface ),
+
+        .pAppName = "GZDoom", .pAppGUID = "8cbd354f-38d3-4173-92b9-c16b5a210b37",
+
+        .pWin32SurfaceInfo = win32Info,
+        .pXlibSurfaceCreateInfo  = nullptr,
+
+        .pOverrideFolderPath = "rt/",
+
+        .pfnPrint = RT_Print, .pUserPrintData = nullptr,
+        .allowedMessages =
+            Args->CheckParm( "-rtdebug" )
+                ? RgMessageSeverityFlags{ RG_MESSAGE_SEVERITY_VERBOSE | RG_MESSAGE_SEVERITY_INFO |
+                                          RG_MESSAGE_SEVERITY_WARNING | RG_MESSAGE_SEVERITY_ERROR }
+                : RgMessageSeverityFlags{ 0 },
+
+        .primaryRaysMaxAlbedoLayers = 1, .indirectIlluminationMaxAlbedoLayers = 1,
+
+        .replacementsMaxVertexCount = 32 * 1024 * 1024, .dynamicMaxVertexCount = 2 * 1024 * 1024,
+
+        .rayCullBackFacingTriangles = 0,
+        .allowTexCoordLayer1 = false, .allowTexCoordLayer2 = false, .allowTexCoordLayer3 = false,
+
+        .lightmapTexCoordLayerIndex = 1,
+
+        .rasterizedMaxVertexCount = 1 << 20, .rasterizedMaxIndexCount = 1 << 21,
+        .rasterizedVertexColorGamma = true,
+
+        .rasterizedSkyCubemapSize = 256,
+
+        .textureSamplerForceMinificationFilterLinear = true,
+        .textureSamplerForceNormalMapFilterLinear    = true,
+
+        .pbrTextureSwizzling = RG_TEXTURE_SWIZZLING_NULL_ROUGHNESS_METALLIC,
+
+        .effectWipeIsUsed = true,
+
+        .worldUp = { 0, 0, 1 }, .worldForward = { 0, 1, 0 }, .worldScale = 1.0f,
+
+        .importedLightIntensityScaleDirectional = 1.0f / 50,
+        .importedLightIntensityScaleSphere      = 1.0f / 500,
+        .importedLightIntensityScaleSpot        = 1.0f / 500,
+    };
+
+#ifndef NDEBUG
+    constexpr bool isdebug = true;
+#else
+    constexpr bool isdebug = false;
+#endif
+
+    const char* remixdll = g_isremix ? "\\bin_remix\\RTGL1.dll" : nullptr;
+
+#ifdef _WIN32
+    RgResult r = rgLoadLibraryAndCreate( &info, isdebug, remixdll, &rt, nullptr );
+#else
+    if( g_isremix )
+    {
+        DPrintf(DMSG_WARNING, "RTX Remix wrapper is not available on Linux; using native RTGL.\n");
+        remixdll = nullptr;
+    }
+    RgResult r = RT_DlopenAndCreateXlib( &info, xlibDisplay, xlibWindow, isdebug, &rt );
+#endif
+    if( r != RG_RESULT_SUCCESS )
+    {
+        auto msg = RT_InitErrorMessage(r, isdebug, remixdll);
+
+#ifdef _WIN32
+        MessageBoxA(
+            nullptr, msg.c_str(), "Failed to initialize RT renderer", MB_ICONEXCLAMATION | MB_OK );
+#else
+        fprintf(stderr, "Failed to initialize RT renderer: %s\n", msg.c_str());
+        DPrintf(DMSG_ERROR, "Failed to initialize RT renderer: %s\n", msg.c_str());
+#endif
+        exit( -1 );
+    }
+
+    // on first start, try to set DLSS, if available
+    if( cvar::rt_firststart )
+    {
+        if( rt.rgUtilIsUpscaleTechniqueAvailable( RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS, //
+                                                  RG_FRAME_GENERATION_MODE_OFF,
+                                                  nullptr ) )
+        {
+            cvar::rt_upscale_dlss = 2;
+            cvar::rt_upscale_fsr2 = 0;
+            cvar::rt_remix_taa    = 0;
+            cvar::rt_ef_vintage   = 0;
+        }
+        else if( rt.rgUtilIsUpscaleTechniqueAvailable( RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2, //
+                                                       RG_FRAME_GENERATION_MODE_OFF,
+                                                       nullptr ) )
+        {
+            cvar::rt_upscale_dlss = 0;
+            cvar::rt_upscale_fsr2 = 2;
+            cvar::rt_remix_taa    = 0;
+            cvar::rt_ef_vintage   = 0;
+        }
+        else
+        {
+            cvar::rt_upscale_dlss = 0;
+            cvar::rt_upscale_fsr2 = 0;
+            cvar::rt_remix_taa    = g_isremix ? 2 : 0;
+            cvar::rt_ef_vintage   = g_isremix ? 0 : RT_VINTAGE_480_DITHER;
+        }
+    }
+    else
+    {
+        if( g_isremix )
+        {
+            if( cvar::rt_upscale_dlss == 0 && //
+                cvar::rt_upscale_fsr2 > 0 &&  //
+                cvar::rt_remix_taa == 0 &&    //
+                cvar::rt_ef_vintage == 0 )
+            {
+                cvar::rt_remix_taa = cvar::rt_upscale_fsr2;
+            }
+            cvar::rt_upscale_fsr2 = 0;
+            cvar::rt_ef_vintage   = 0;
+        }
+        else
+        {
+            if( cvar::rt_upscale_dlss == 0 && //
+                cvar::rt_upscale_fsr2 == 0 &&  //
+                cvar::rt_remix_taa > 0 &&    //
+                cvar::rt_ef_vintage == 0 )
+            {
+                cvar::rt_upscale_fsr2 = cvar::rt_remix_taa;
+            }
+            cvar::rt_remix_taa = 0;
+        }
+    }
+}
+
 #ifdef _WIN32
 RG_D3D12CORE_HELPER( "rt/" )
 
@@ -2110,7 +2302,7 @@ Win32RTVideo::Win32RTVideo()
             msg += "\n\nDo you want to download the missing files?\n";
             msg += "\nYES - open renderer's Download page";
             msg += "\nNO  - proceed with a limited feature set";
-            
+
             int l = MessageBoxA( g_msgbox_parent.load(),
                                  msg.c_str(),
                                  "DLL check failure",
@@ -2124,176 +2316,11 @@ Win32RTVideo::Win32RTVideo()
         }
     }
 
-    rt = RgInterface{};
-
-#ifdef WIN32
     auto win32Info = RgWin32SurfaceCreateInfo{
         .hinstance = GetModuleHandle( NULL ),
         .hwnd      = mainwindow.GetHandle(),
     };
-#else
-    RgXlibSurfaceCreateInfo x11Info = { .dpy    = wmInfo.info.x11.display,
-                                        .window = wmInfo.info.x11.window };
-#endif
-
-    auto info = RgInstanceCreateInfo
-    {
-        .sType = RG_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pNext = NULL,
-
-        .version = RG_RTGL_VERSION_API, .sizeOfRgInterface = sizeof( RgInterface ),
-
-        .pAppName = "GZDoom", .pAppGUID = "8cbd354f-38d3-4173-92b9-c16b5a210b37",
-
-#if WIN32
-        .pWin32SurfaceInfo = &win32Info,
-#else
-        .pXlibSurfaceCreateInfo  = &x11Info,
-#endif
-
-        .pOverrideFolderPath = "rt/",
-
-        .pfnPrint = RT_Print, .pUserPrintData = nullptr,
-        .allowedMessages =
-            Args->CheckParm( "-rtdebug" )
-                ? RgMessageSeverityFlags{ RG_MESSAGE_SEVERITY_VERBOSE | RG_MESSAGE_SEVERITY_INFO |
-                                          RG_MESSAGE_SEVERITY_WARNING | RG_MESSAGE_SEVERITY_ERROR }
-                : RgMessageSeverityFlags{ 0 },
-
-        .primaryRaysMaxAlbedoLayers = 1, .indirectIlluminationMaxAlbedoLayers = 1,
-
-        .replacementsMaxVertexCount = 32 * 1024 * 1024, .dynamicMaxVertexCount = 2 * 1024 * 1024,
-
-        .rayCullBackFacingTriangles = 0,
-        .allowTexCoordLayer1 = false, .allowTexCoordLayer2 = false, .allowTexCoordLayer3 = false,
-
-        .lightmapTexCoordLayerIndex = 1,
-
-        .rasterizedMaxVertexCount = 1 << 20, .rasterizedMaxIndexCount = 1 << 21,
-        .rasterizedVertexColorGamma = true,
-
-        .rasterizedSkyCubemapSize = 256,
-
-        .textureSamplerForceMinificationFilterLinear = true,
-        .textureSamplerForceNormalMapFilterLinear    = true,
-
-        .pbrTextureSwizzling = RG_TEXTURE_SWIZZLING_NULL_ROUGHNESS_METALLIC,
-
-        .effectWipeIsUsed = true,
-
-        .worldUp = { 0, 0, 1 }, .worldForward = { 0, 1, 0 }, .worldScale = 1.0f,
-
-        .importedLightIntensityScaleDirectional = 1.0f / 50,
-        .importedLightIntensityScaleSphere      = 1.0f / 500,
-        .importedLightIntensityScaleSpot        = 1.0f / 500,
-    };
-
-#ifndef NDEBUG
-    constexpr bool isdebug = true;
-#else
-    constexpr bool isdebug = false;
-#endif
-
-    const char* remixdll = g_isremix ? "\\bin_remix\\RTGL1.dll" : nullptr;
-
-    RgResult r = rgLoadLibraryAndCreate( &info, isdebug, remixdll, &rt, nullptr );
-    if( r != RG_RESULT_SUCCESS )
-    {
-        auto msg = std::string{ "RgResult code: " };
-
-        switch( r )
-        {
-            case RG_RESULT_CANT_FIND_DYNAMIC_LIBRARY:
-                msg = remixdll  ? "Can't load Remix Renderer DLLs"
-                      : isdebug ? "Can't find \'rt/bin/debug/RTGL1.dll\' file"
-                                : "Can't find \'rt/bin/RTGL1.dll\' file";
-                break;
-            case RG_RESULT_CANT_FIND_ENTRY_FUNCTION_IN_DYNAMIC_LIBRARY:
-                msg =
-                    remixdll  ? "Can't find rgCreateInstance function in Remix Renderer wrapper DLL"
-                    : isdebug ? "Can't find rgCreateInstance function in \'rt/bin/debug/RTGL1.dll\'"
-                              : "Can't find rgCreateInstance function in \'rt/bin/RTGL1.dll\'";
-                break;
-
-            // clang-format off
-            case RG_RESULT_NOT_INITIALIZED:                     msg += "RG_RESULT_NOT_INITIALIZED";                     break;
-            case RG_RESULT_ALREADY_INITIALIZED:                 msg += "RG_RESULT_ALREADY_INITIALIZED";                 break;
-            case RG_RESULT_GRAPHICS_API_ERROR:                  msg += "RG_RESULT_GRAPHICS_API_ERROR";                  break;
-            case RG_RESULT_INTERNAL_ERROR:                      msg += "RG_RESULT_INTERNAL_ERROR";                      break;
-            case RG_RESULT_CANT_FIND_SUPPORTED_PHYSICAL_DEVICE: msg += "RG_RESULT_CANT_FIND_SUPPORTED_PHYSICAL_DEVICE"; break;
-            case RG_RESULT_FRAME_WASNT_STARTED:                 msg += "RG_RESULT_FRAME_WASNT_STARTED";                 break;
-            case RG_RESULT_FRAME_WASNT_ENDED:                   msg += "RG_RESULT_FRAME_WASNT_ENDED";                   break;
-            case RG_RESULT_WRONG_FUNCTION_CALL:                 msg += "RG_RESULT_WRONG_FUNCTION_CALL";                 break;
-            case RG_RESULT_WRONG_FUNCTION_ARGUMENT:             msg += "RG_RESULT_WRONG_FUNCTION_ARGUMENT";             break;
-            case RG_RESULT_WRONG_STRUCTURE_TYPE:                msg += "RG_RESULT_WRONG_STRUCTURE_TYPE";                break;
-            case RG_RESULT_ERROR_CANT_FIND_HARDCODED_RESOURCES: msg += "RG_RESULT_ERROR_CANT_FIND_HARDCODED_RESOURCES"; break;
-            case RG_RESULT_ERROR_CANT_FIND_SHADER:              msg += "RG_RESULT_ERROR_CANT_FIND_SHADER";              break;
-            case RG_RESULT_ERROR_MEMORY_ALIGNMENT:              msg += "RG_RESULT_ERROR_MEMORY_ALIGNMENT";              break;
-            case RG_RESULT_ERROR_NO_VULKAN_EXTENSION:           msg += "RG_RESULT_ERROR_NO_VULKAN_EXTENSION";           break;
-                // clang-format on
-
-            default: msg += std::to_string( r ); break;
-        }
-
-        MessageBoxA(
-            nullptr, msg.c_str(), "Failed to initialize RT renderer", MB_ICONEXCLAMATION | MB_OK );
-        exit( -1 );
-    }
-
-    // on first start, try to set DLSS, if available
-    if( cvar::rt_firststart )
-    {
-        if( rt.rgUtilIsUpscaleTechniqueAvailable( RG_RENDER_UPSCALE_TECHNIQUE_NVIDIA_DLSS, //
-                                                  RG_FRAME_GENERATION_MODE_OFF,
-                                                  nullptr ) )
-        {
-            cvar::rt_upscale_dlss = 2;
-            cvar::rt_upscale_fsr2 = 0;
-            cvar::rt_remix_taa    = 0;
-            cvar::rt_ef_vintage   = 0;
-        }
-        else if( rt.rgUtilIsUpscaleTechniqueAvailable( RG_RENDER_UPSCALE_TECHNIQUE_AMD_FSR2, //
-                                                       RG_FRAME_GENERATION_MODE_OFF,
-                                                       nullptr ) )
-        {
-            cvar::rt_upscale_dlss = 0;
-            cvar::rt_upscale_fsr2 = 2;
-            cvar::rt_remix_taa    = 0;
-            cvar::rt_ef_vintage   = 0;
-        }
-        else
-        {
-            cvar::rt_upscale_dlss = 0;
-            cvar::rt_upscale_fsr2 = 0;
-            cvar::rt_remix_taa    = g_isremix ? 2 : 0;
-            cvar::rt_ef_vintage   = g_isremix ? 0 : RT_VINTAGE_480_DITHER;
-        }
-    }
-    else
-    {
-        if( g_isremix )
-        {
-            if( cvar::rt_upscale_dlss == 0 && //
-                cvar::rt_upscale_fsr2 > 0 &&  //
-                cvar::rt_remix_taa == 0 &&    //
-                cvar::rt_ef_vintage == 0 )
-            {
-                cvar::rt_remix_taa = cvar::rt_upscale_fsr2;
-            }
-            cvar::rt_upscale_fsr2 = 0;
-            cvar::rt_ef_vintage   = 0;
-        }
-        else
-        {
-            if( cvar::rt_upscale_dlss == 0 && //
-                cvar::rt_upscale_fsr2 == 0 &&  //
-                cvar::rt_remix_taa > 0 &&    //
-                cvar::rt_ef_vintage == 0 )
-            {
-                cvar::rt_upscale_fsr2 = cvar::rt_remix_taa;
-            }
-            cvar::rt_remix_taa = 0;
-        }
-    }
+    RT_InitInstance(&win32Info, nullptr, 0);
 }
 
 DFrameBuffer* Win32RTVideo::CreateFrameBuffer()
@@ -2317,6 +2344,32 @@ void Win32RTVideo::Shutdown()
     }
 
     rt = {};
+}
+#else
+void RT_InitXlibSurface(void* display, unsigned long window)
+{
+    RT_InitInstance(nullptr, display, window);
+}
+
+DFrameBuffer* RT_CreateFrameBuffer(void* hMonitor, bool fullscreen)
+{
+    return new RTFrameBuffer{ hMonitor, fullscreen };
+}
+
+void RT_Shutdown()
+{
+    if( rt.rgDestroyInstance )
+    {
+        RgResult r = rt.rgDestroyInstance();
+        if( r != RG_RESULT_SUCCESS )
+        {
+            DPrintf(DMSG_ERROR, "rgDestroyInstance failed: %s\n", RT_InitErrorMessage(r, false, nullptr).c_str());
+        }
+    }
+
+    rt = {};
+
+    RT_UnloadLibrary();
 }
 #endif
 

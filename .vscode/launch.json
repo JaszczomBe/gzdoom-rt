@@ -7,6 +7,8 @@
       "request": "launch",
       "program": "${workspaceFolder}/build-vscode-linux/gzdoom",
       "args": [
+        "-config",
+        "${workspaceFolder}/gzdoom-linux.ini",
         "-iwad",
         "/home/rgrabowski/Games/gzdoom-rt/DOOM2.WAD"
       ],
@@ -28,6 +30,8 @@
       "request": "launch",
       "program": "${workspaceFolder}/build-vscode-linux-rt/gzdoom",
       "args": [
+        "-config",
+        "${workspaceFolder}/gzdoom-rt-linux.ini",
         "-iwad",
         "/home/rgrabowski/Games/gzdoom-rt/DOOM2.WAD"
       ],
@@ -36,11 +40,15 @@
       "environment": [
         {
           "name": "LD_LIBRARY_PATH",
-          "value": "${workspaceFolder}/build-zmusic-linux/source"
+          "value": "${workspaceFolder}/build-zmusic-linux/source:${workspaceFolder}/build-rtgl-linux"
         },
         {
           "name": "RTGL1_SDK_PATH",
           "value": "${workspaceFolder}/libraries/RTGL"
+        },
+        {
+          "name": "RTGL1_LIBRARY_PATH",
+          "value": "${workspaceFolder}/build-rtgl-linux/libRTGL1.so"
         }
       ],
       "externalConsole": false,

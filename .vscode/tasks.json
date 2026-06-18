@@ -87,6 +87,19 @@
       "problemMatcher": []
     },
     {
+      "label": "build rtgl linux",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build-rtgl-linux",
+        "--parallel"
+      ],
+      "group": "build",
+      "dependsOn": "configure rtgl linux",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "configure linux rt probe",
       "type": "shell",
       "command": "cmake",
@@ -111,7 +124,7 @@
       "group": "build",
       "dependsOn": [
         "build zmusic linux",
-        "configure rtgl linux"
+        "build rtgl linux"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
@@ -127,7 +140,8 @@
       ],
       "options": {
         "env": {
-          "RTGL1_SDK_PATH": "${workspaceFolder}/libraries/RTGL"
+          "RTGL1_SDK_PATH": "${workspaceFolder}/libraries/RTGL",
+          "RTGL1_LIBRARY_PATH": "${workspaceFolder}/build-rtgl-linux/libRTGL1.so"
         }
       },
       "group": "build",

@@ -456,6 +456,7 @@ set( PLAT_SDL_SOURCES
 	common/platform/posix/sdl/i_main.cpp
 	common/platform/posix/sdl/i_system.cpp
 	common/platform/posix/sdl/sdlglvideo.cpp
+	common/platform/posix/sdl/sdl_x11_wminfo.cpp
 	common/platform/posix/sdl/st_start.cpp )
 set( PLAT_UNIX_SOURCES
 	common/platform/posix/unix/i_specialpaths.cpp
@@ -801,6 +802,9 @@ if (HAVE_RT)
 		common/rendering/rt/rt_main.cpp
 		common/rendering/rt/rt_cutscene.cpp
 	)
+	if (NOT WIN32)
+		list(APPEND RT_SOURCES common/rendering/rt/rt_linux_loader.cpp)
+	endif()
 	if (WIN32)
 		list(APPEND RT_SOURCES common/rendering/rt/remix_launcher.cpp)
 	endif()
