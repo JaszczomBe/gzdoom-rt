@@ -2,6 +2,34 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "configure zmusic linux",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/libraries/ZMusic",
+        "-B",
+        "${workspaceFolder}/build-zmusic-linux",
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DZMUSIC_INSTALL=OFF"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build zmusic linux",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build-zmusic-linux",
+        "--parallel"
+      ],
+      "group": "build",
+      "dependsOn": "configure zmusic linux",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "configure linux non-rt",
       "type": "shell",
       "command": "cmake",
@@ -13,9 +41,13 @@
         "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
         "-DHAVE_RT=OFF",
         "-DZDOOM_EXE_NAME:STRING=gzdoom",
-        "-DPK3_QUIET_ZIPDIR=ON"
+        "-DPK3_QUIET_ZIPDIR=ON",
+        "-DZMUSIC_INCLUDE_DIR=${workspaceFolder}/libraries/ZMusic/include",
+        "-DZMUSIC_LIBRARIES=${workspaceFolder}/build-zmusic-linux/source/libzmusic.so",
+        "-DCMAKE_BUILD_RPATH=${workspaceFolder}/build-zmusic-linux/source"
       ],
       "group": "build",
+      "dependsOn": "build zmusic linux",
       "problemMatcher": []
     },
     {
@@ -66,7 +98,10 @@
         "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
         "-DHAVE_RT=ON",
         "-DZDOOM_EXE_NAME:STRING=gzdoom",
-        "-DPK3_QUIET_ZIPDIR=ON"
+        "-DPK3_QUIET_ZIPDIR=ON",
+        "-DZMUSIC_INCLUDE_DIR=${workspaceFolder}/libraries/ZMusic/include",
+        "-DZMUSIC_LIBRARIES=${workspaceFolder}/build-zmusic-linux/source/libzmusic.so",
+        "-DCMAKE_BUILD_RPATH=${workspaceFolder}/build-zmusic-linux/source"
       ],
       "options": {
         "env": {
@@ -74,7 +109,11 @@
         }
       },
       "group": "build",
-      "dependsOn": "configure rtgl linux",
+      "dependsOn": [
+        "build zmusic linux",
+        "configure rtgl linux"
+      ],
+      "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {

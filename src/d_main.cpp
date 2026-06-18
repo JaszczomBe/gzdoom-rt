@@ -1381,7 +1381,7 @@ void D_PageDrawer (void)
 	if (Page.Exists())
 	{
 #if !HAVE_RT
-		DrawTexture(twod, Page, true, 0, y,
+		DrawTexture(twod, Page, true, 0, 0,
 			DTA_Fullscreen, true,
 			DTA_Masked, false,
 			DTA_BilinearFilter, true,
@@ -3809,12 +3809,7 @@ static int D_InitGame(const FIWADInfo* iwad_info, std::vector<std::string>& allw
 	staticEventManager.OnEngineInitialize();
 	return 0;
 }
-//==========================================================================
-//
-// D_DoomMain
-//
-//==========================================================================
-
+#if HAVE_RT
 static FString RT_GetFirstStartMarker()
 {
 	return M_GetConfigPath( false ) + ".firststart";
@@ -3839,6 +3834,13 @@ void RT_FirstStartDone()
 	file->Printf( "this file exists as a marker of the first start" );
 	delete file;
 }
+#endif
+
+//==========================================================================
+//
+// D_DoomMain
+//
+//==========================================================================
 
 static int D_DoomMain_Internal (void)
 {

@@ -2,12 +2,18 @@
     #define NOMINMAX
 #endif
 
-#include "i_mainwindow.h"
+#ifdef _WIN32
+    #include "i_mainwindow.h"
+    #include "win32rtvideo.h"
+#endif
 #include "i_time.h"
 #include "m_argv.h"
-#include "win32rtvideo.h"
 
-#include "base_sysfb.h"
+#ifdef _WIN32
+    #include "base_sysfb.h"
+#else
+    #include "gl_sysfb.h"
+#endif
 #include "c_dispatch.h"
 #include "hw_renderstate.h"
 #include "g_levellocals.h"
@@ -24,7 +30,9 @@
 
 #include "rt_state.h"
 
-#include <shellapi.h>
+#ifdef _WIN32
+    #include <shellapi.h>
+#endif
 
 #include <filesystem>
 #include <span>
@@ -40,7 +48,9 @@
 //
 //
 
-#define RG_USE_SURFACE_WIN32
+#ifdef _WIN32
+    #define RG_USE_SURFACE_WIN32
+#endif
 #include <RTGL1/RTGL1.h>
 
 RgInterface rt      = {};
@@ -84,7 +94,7 @@ constexpr ECVarType ValueToCVarType =
     MSVC_VSEG FCVarDecl const *const cvardeclref_##name GCC_VSEG = &cvardecl_##name;
 
 #define RT_CVAR_COLOR( name, default_value, description ) \
-    CVARD( Color, ##name, default_value, CVAR_GLOBALCONFIG | CVAR_ARCHIVE, description )
+    CVARD( Color, name, default_value, CVAR_GLOBALCONFIG | CVAR_ARCHIVE, description )
 // clang-format on
 
 
@@ -282,7 +292,11 @@ int         rt_cullmode              = 2; // 0 -- balanced,  1 -- original gzdoo
 extern float RT_CutsceneTime();
 extern void  RT_ForceIntroCutsceneMusicStop();
 
+#ifdef _WIN32
 extern void RT_CloseLauncherWindow();
+#else
+void RT_CloseLauncherWindow() {}
+#endif
 
 auto RT_MakeUpRightForwardVectors( const DRotator& rotation ) -> std::tuple< RgFloat3D, RgFloat3D, RgFloat3D >;
 
@@ -2014,6 +2028,7 @@ std::atomic< HWND > g_msgbox_parent{};
 
 
 
+#ifdef _WIN32
 RG_D3D12CORE_HELPER( "rt/" )
 
 Win32RTVideo::Win32RTVideo()
@@ -2303,6 +2318,7 @@ void Win32RTVideo::Shutdown()
 
     rt = {};
 }
+#endif
 
 void RT_ShowWarningMessageBox( const char* msg )
 {
@@ -2315,12 +2331,17 @@ void RT_ShowWarningMessageBox( const char* msg )
 
 bool RT_AskToOpenUrl( const char* heading, const char* msg, const wchar_t* url )
 {
+#ifdef _WIN32
     int l = MessageBoxA( g_msgbox_parent.load(), msg, heading, MB_ICONEXCLAMATION | MB_YESNO );
     if( l == IDYES )
     {
         ShellExecute( nullptr, 0, url, 0, 0, SW_SHOW );
         return true;
     }
+#else
+    DPrintf( DMSG_WARNING, "%s\n%s\n", heading, msg );
+    ( void )url;
+#endif
     return false;
 }
 
@@ -3031,7 +3052,9 @@ void RTFrameBuffer::RT_BeginFrame()
         if( g_rt_skipinitframes == 0 )
         {
             RT_CloseLauncherWindow(); // renderer is ready, close launcher window
+#ifdef _WIN32
             PositionWindow( IsFullscreen() );
+#endif
             g_rt_forcenofocuschange = false;
         }
         --g_rt_skipinitframes;

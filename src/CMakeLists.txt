@@ -787,8 +787,10 @@ if (HAVE_RT)
 	set(RT_SOURCES
 		common/rendering/rt/rt_main.cpp
 		common/rendering/rt/rt_cutscene.cpp
-		common/rendering/rt/remix_launcher.cpp
 	)
+	if (WIN32)
+		list(APPEND RT_SOURCES common/rendering/rt/remix_launcher.cpp)
+	endif()
 
 	list (APPEND FASTMATH_SOURCES ${RT_SOURCES})
 endif()

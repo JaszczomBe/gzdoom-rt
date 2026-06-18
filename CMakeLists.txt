@@ -309,7 +309,11 @@ else()
 	set( REL_LINKER_FLAGS "" )
 	set( ALL_C_FLAGS "-ffp-contract=off" )
 	
-	set( ALL_C_FLAGS "${ALL_C_FLAGS} /DHAVE_RT=0" )
+	if ( HAVE_RT )
+		set( ALL_C_FLAGS "${ALL_C_FLAGS} -DHAVE_RT=1" )
+	else()
+		set( ALL_C_FLAGS "${ALL_C_FLAGS} -DHAVE_RT=0" )
+	endif()
 
 	if ( HAVE_VULKAN )
 		set( ALL_C_FLAGS "${ALL_C_FLAGS} -DHAVE_VULKAN" )
