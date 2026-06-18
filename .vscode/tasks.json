@@ -1,0 +1,99 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "configure linux non-rt",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}",
+        "-B",
+        "${workspaceFolder}/build-vscode-linux",
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DHAVE_RT=OFF",
+        "-DZDOOM_EXE_NAME:STRING=gzdoom",
+        "-DPK3_QUIET_ZIPDIR=ON"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "build linux non-rt",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build-vscode-linux",
+        "--parallel"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "dependsOn": "configure linux non-rt",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "configure rtgl linux",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}/libraries/RTGL",
+        "-B",
+        "${workspaceFolder}/build-rtgl-linux",
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DRG_WITH_SURFACE_XLIB=ON",
+        "-DRG_WITH_SURFACE_WAYLAND=OFF",
+        "-DRG_WITH_DX12=OFF",
+        "-DRG_WITH_NATIVE_DLSS=OFF",
+        "-DRG_WITH_IMGUI=OFF",
+        "-DRG_WITH_EXAMPLES=OFF"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "configure linux rt probe",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "${workspaceFolder}",
+        "-B",
+        "${workspaceFolder}/build-vscode-linux-rt",
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+        "-DHAVE_RT=ON",
+        "-DZDOOM_EXE_NAME:STRING=gzdoom",
+        "-DPK3_QUIET_ZIPDIR=ON"
+      ],
+      "options": {
+        "env": {
+          "RTGL1_SDK_PATH": "${workspaceFolder}/libraries/RTGL"
+        }
+      },
+      "group": "build",
+      "dependsOn": "configure rtgl linux",
+      "problemMatcher": []
+    },
+    {
+      "label": "build linux rt probe",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build-vscode-linux-rt",
+        "--parallel"
+      ],
+      "options": {
+        "env": {
+          "RTGL1_SDK_PATH": "${workspaceFolder}/libraries/RTGL"
+        }
+      },
+      "group": "build",
+      "dependsOn": "configure linux rt probe",
+      "problemMatcher": "$gcc"
+    }
+  ]
+}

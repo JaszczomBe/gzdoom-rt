@@ -1,0 +1,42 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run non-RT build",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build-vscode-linux/gzdoom",
+      "args": [
+        "-iwad",
+        "/home/rgrabowski/Games/gzdoom-rt/DOOM2.WAD"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "preLaunchTask": "build linux non-rt"
+    },
+    {
+      "name": "Run RT probe build",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build-vscode-linux-rt/gzdoom",
+      "args": [
+        "-iwad",
+        "/home/rgrabowski/Games/gzdoom-rt/DOOM2.WAD"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [
+        {
+          "name": "RTGL1_SDK_PATH",
+          "value": "${workspaceFolder}/libraries/RTGL"
+        }
+      ],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "preLaunchTask": "build linux rt probe"
+    }
+  ]
+}

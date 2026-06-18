@@ -19,7 +19,10 @@
 /llvm
 .vs
 .idea
-.vscode
+.vscode/*
+!.vscode/
+!.vscode/tasks.json
+!.vscode/launch.json
 /src/gl/unused
 /mapfiles_release/*.map
 /AppDir
@@ -31,3 +34,7 @@
 /build_vc2019-64
 /build_vc2019-32
 /build__
+/build-vscode-linux
+/build-vscode-linux-rt
+/build-rtgl-linux
+/rt
