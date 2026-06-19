@@ -89,6 +89,36 @@
             "problemMatcher": "$gcc"
         },
         {
+            "label": "configure macos non-rt",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-lc",
+                "build_type=\"$1\"; workspace=\"$2\"; case \"$build_type\" in Debug|Release|RelWithDebInfo) ;; *) echo \"Unsupported CMake build type: $build_type. Select Debug or Release in the VS Code bottom bar.\"; exit 2;; esac; cmake -S \"$workspace\" -B \"$workspace/build/$build_type/non-rt\" -G Ninja -DCMAKE_BUILD_TYPE=\"$build_type\" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DZDOOM_EXE_NAME:STRING=gzdoom -DZDOOM_OUTPUT_DIR=\"$workspace/build/$build_type/non-rt\" -DPK3_QUIET_ZIPDIR=ON -DZMUSIC_INCLUDE_DIR=\"$workspace/libraries/ZMusic/include\" -DZMUSIC_LIBRARIES=\"$workspace/build/$build_type/zmusic/source/libzmusic.dylib\" -DCMAKE_BUILD_RPATH=\"$workspace/build/$build_type/zmusic/source\" -DHAVE_RT=OFF",
+                "--",
+                "${command:cmake.buildType}",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "dependsOn": "build zmusic linux",
+            "problemMatcher": []
+        },
+        {
+            "label": "build macos non-rt",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-lc",
+                "build_type=\"$1\"; workspace=\"$2\"; case \"$build_type\" in Debug|Release|RelWithDebInfo) ;; *) echo \"Unsupported CMake build type: $build_type. Select Debug or Release in the VS Code bottom bar.\"; exit 2;; esac; cmake --build \"$workspace/build/$build_type/non-rt\" --parallel",
+                "--",
+                "${command:cmake.buildType}",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "dependsOn": "configure macos non-rt",
+            "problemMatcher": "$gcc"
+        },
+        {
             "label": "configure linux rt probe",
             "type": "shell",
             "command": "cmake",

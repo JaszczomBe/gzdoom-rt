@@ -10,7 +10,14 @@
                 "-config",
                 "${workspaceFolder}/gzdoom-linux.ini",
                 "-iwad",
-                "${input:gzdoomIwad}"
+                "${input:gzdoomIwad}",
+                "-file",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_support.pk3",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_widescreen_gfx.pk3",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/brightmaps.pk3",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/lights.pk3",
+                "+r_drawvoxels",
+                "1"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -22,7 +29,18 @@
             ],
             "externalConsole": false,
             "MIMode": "gdb",
-            "preLaunchTask": "build linux non-rt"
+            "preLaunchTask": "build linux non-rt",
+            "osx": {
+                "program": "${command:cmake.buildDirectory}/non-rt/gzdoom.app/Contents/MacOS/gzdoom",
+                "environment": [
+                    {
+                        "name": "DYLD_LIBRARY_PATH",
+                        "value": "${command:cmake.buildDirectory}/zmusic/source"
+                    }
+                ],
+                "MIMode": "lldb",
+                "preLaunchTask": "build macos non-rt"
+            }
         },
         {
             "name": "GZDoom Ray Tracing",
@@ -67,27 +85,27 @@
                 "options": [
                     {
                         "label": "DOOM II: Hell on Earth",
-                        "value": "/home/rgrabowski/Work/doom/wad/DOOM2.WAD"
+                        "value": "${workspaceFolder}/../wad/DOOM2.WAD"
                     },
                     {
                         "label": "Ultimate Doom",
-                        "value": "/home/rgrabowski/Work/doom/wad/DOOM.WAD"
+                        "value": "${workspaceFolder}/../wad/DOOM.WAD"
                     },
                     {
                         "label": "Final Doom: Plutonia",
-                        "value": "/home/rgrabowski/Work/doom/wad/PLUTONIA.WAD"
+                        "value": "${workspaceFolder}/../wad/PLUTONIA.WAD"
                     },
                     {
                         "label": "Final Doom: TNT Evilution",
-                        "value": "/home/rgrabowski/Work/doom/wad/TNT.WAD"
+                        "value": "${workspaceFolder}/../wad/TNT.WAD"
                     },
                     {
                         "label": "Heretic",
-                        "value": "/home/rgrabowski/Work/doom/wad/HERETIC.WAD"
+                        "value": "${workspaceFolder}/../wad/HERETIC.WAD"
                     },
                     {
                         "label": "Hexen",
-                        "value": "/home/rgrabowski/Work/doom/wad/HEXEN.WAD"
+                        "value": "${workspaceFolder}/../wad/HEXEN.WAD"
                     }
                 ]
             }
