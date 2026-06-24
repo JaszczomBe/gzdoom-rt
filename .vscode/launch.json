@@ -9,8 +9,6 @@
             "args": [
                 "-config",
                 "${workspaceFolder}/gzdoom-linux.ini",
-                "-iwad",
-                "${input:gzdoomIwad}",
                 "-file",
                 "${workspaceFolder}/../gzdoom-rt-1.0.2/game_support.pk3",
                 "${workspaceFolder}/../gzdoom-rt-1.0.2/game_widescreen_gfx.pk3",
@@ -25,6 +23,10 @@
                 {
                     "name": "LD_LIBRARY_PATH",
                     "value": "${command:cmake.buildDirectory}/zmusic/source"
+                },
+                {
+                    "name": "DOOMWADDIR",
+                    "value": "${workspaceFolder}/../wad"
                 }
             ],
             "externalConsole": false,
@@ -36,6 +38,10 @@
                     {
                         "name": "DYLD_LIBRARY_PATH",
                         "value": "${command:cmake.buildDirectory}/zmusic/source"
+                    },
+                    {
+                        "name": "DOOMWADDIR",
+                        "value": "${workspaceFolder}/../wad"
                     }
                 ],
                 "MIMode": "lldb",
@@ -50,8 +56,11 @@
             "args": [
                 "-config",
                 "${workspaceFolder}/gzdoom-rt-linux.ini",
-                "-iwad",
-                "${input:gzdoomIwad}"
+                "-file",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_support.pk3",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_widescreen_gfx.pk3",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/brightmaps.pk3",
+                "${workspaceFolder}/../gzdoom-rt-1.0.2/lights.pk3"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -59,6 +68,10 @@
                 {
                     "name": "LD_LIBRARY_PATH",
                     "value": "${command:cmake.buildDirectory}/zmusic/source:${command:cmake.buildDirectory}/rtgl"
+                },
+                {
+                    "name": "DOOMWADDIR",
+                    "value": "${workspaceFolder}/../wad"
                 },
                 {
                     "name": "RTGL1_SDK_PATH",
@@ -72,43 +85,6 @@
             "externalConsole": false,
             "MIMode": "gdb",
             "preLaunchTask": "build linux rt probe"
-        }
-    ],
-    "inputs": [
-        {
-            "id": "gzdoomIwad",
-            "type": "command",
-            "command": "extension.commandvariable.pickStringRemember",
-            "args": {
-                "key": "gzdoomIwad",
-                "description": "GZDoom IWAD",
-                "options": [
-                    {
-                        "label": "DOOM II: Hell on Earth",
-                        "value": "${workspaceFolder}/../wad/DOOM2.WAD"
-                    },
-                    {
-                        "label": "Ultimate Doom",
-                        "value": "${workspaceFolder}/../wad/DOOM.WAD"
-                    },
-                    {
-                        "label": "Final Doom: Plutonia",
-                        "value": "${workspaceFolder}/../wad/PLUTONIA.WAD"
-                    },
-                    {
-                        "label": "Final Doom: TNT Evilution",
-                        "value": "${workspaceFolder}/../wad/TNT.WAD"
-                    },
-                    {
-                        "label": "Heretic",
-                        "value": "${workspaceFolder}/../wad/HERETIC.WAD"
-                    },
-                    {
-                        "label": "Hexen",
-                        "value": "${workspaceFolder}/../wad/HEXEN.WAD"
-                    }
-                ]
-            }
         }
     ]
 }
