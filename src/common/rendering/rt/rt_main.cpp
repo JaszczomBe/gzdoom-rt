@@ -27,6 +27,7 @@
 #include "i_modelvertexbuffer.h"
 #include "p_lnspec.h"
 #include "image.h"
+#include "filesystem.h"
 
 #include "rt_state.h"
 #include "rt_video.h"
@@ -45,6 +46,7 @@
 #include <unordered_set>
 #include <cstdlib>
 #include <cstdio>
+#include <cctype>
 
 
 //
@@ -348,6 +350,38 @@ constexpr uint64_t MuzzleFlashLightId = 0xFFFFFFF + 2;
 constexpr uint64_t SectorLightId_Base = 0xFFFFFFF + 3;
 
 
+void RT_AppendMapNamePart( char* dst, size_t& pos, size_t capacity, const char* src )
+{
+    if( capacity == 0 )
+    {
+        return;
+    }
+
+    for( ; src && *src && pos < capacity - 1; src++ )
+    {
+        unsigned char c = static_cast< unsigned char >( *src );
+        if( std::isalnum( c ) )
+        {
+            dst[ pos++ ] = static_cast< char >( std::tolower( c ) );
+        }
+        else if( pos > 0 && dst[ pos - 1 ] != '_' )
+        {
+            dst[ pos++ ] = '_';
+        }
+    }
+}
+
+void RT_AppendMapMd5( char* dst, size_t& pos, size_t capacity, const uint8_t md5[ 16 ] )
+{
+    constexpr char hex[] = "0123456789abcdef";
+
+    for( size_t i = 0; i < 16 && pos + 2 < capacity; i++ )
+    {
+        dst[ pos++ ] = hex[ md5[ i ] >> 4 ];
+        dst[ pos++ ] = hex[ md5[ i ] & 0x0F ];
+    }
+}
+
 
 const char* RT_GetMapName()
 {
@@ -358,13 +392,30 @@ const char* RT_GetMapName()
 
     if( primaryLevel && !primaryLevel->MapName.IsEmpty() )
     {
-        static char mapname_lower[ 128 ];
+        static char mapname_lower[ 256 ];
 
         size_t i = 0;
-        for( ; i < primaryLevel->MapName.Len() && i < std::size( mapname_lower ) - 1; i++ )
+        const int wadnum =
+            primaryLevel->lumpnum >= 0 ? fileSystem.GetFileContainer( primaryLevel->lumpnum ) : -1;
+        if( wadnum >= 0 )
         {
-            mapname_lower[ i ] = std::tolower( primaryLevel->MapName[ i ] );
+            RT_AppendMapNamePart(
+                mapname_lower, i, std::size( mapname_lower ), fileSystem.GetResourceFileName( wadnum ) );
+            if( i > 0 && i < std::size( mapname_lower ) - 1 )
+            {
+                mapname_lower[ i++ ] = '_';
+            }
         }
+
+        RT_AppendMapNamePart(
+            mapname_lower, i, std::size( mapname_lower ), primaryLevel->MapName.GetChars() );
+
+        if( i > 0 && i < std::size( mapname_lower ) - 1 )
+        {
+            mapname_lower[ i++ ] = '_';
+        }
+        RT_AppendMapMd5( mapname_lower, i, std::size( mapname_lower ), primaryLevel->md5 );
+
         mapname_lower[ std::min( i, std::size( mapname_lower ) - 1 ) ] = '\0';
 
         return mapname_lower;
