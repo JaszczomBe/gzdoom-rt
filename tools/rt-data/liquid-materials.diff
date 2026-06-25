@@ -1,6 +1,6 @@
 --- data/textures.json
 +++ data/textures.json
-@@ -6,25 +6,59 @@
+@@ -6,25 +6,68 @@
          { "textureName":"FWATER1"  ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
      ,   { "textureName":"FWATER2"  ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
      ,   { "textureName":"FWATER3"  ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
@@ -53,10 +53,23 @@
 +    ,   { "textureName":"SLIME16"  ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
          
  
-     ,   { "textureName":"LAVA1"    ,"emissiveMult":1.0     }
-     ,   { "textureName":"LAVA2"    ,"emissiveMult":1.0     }
-     ,   { "textureName":"LAVA3"    ,"emissiveMult":1.0     }
-     ,   { "textureName":"LAVA4"    ,"emissiveMult":1.0     }
+-    ,   { "textureName":"LAVA1"    ,"emissiveMult":1.0     }
+-    ,   { "textureName":"LAVA2"    ,"emissiveMult":1.0     }
+-    ,   { "textureName":"LAVA3"    ,"emissiveMult":1.0     }
+-    ,   { "textureName":"LAVA4"    ,"emissiveMult":1.0     }
++    ,   { "textureName":"LAVA1"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"LAVA2"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"LAVA3"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"LAVA4"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"FLTLAVA1" ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"FLTLAVA2" ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"FLTLAVA3" ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"FLTLAVA4" ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"FLATHUH1" ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"X_001"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"X_002"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"X_003"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
++    ,   { "textureName":"X_004"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }
 -    ,   { "textureName":"NUKAGE1"  ,"emissiveMult":1.0     }
 -    ,   { "textureName":"NUKAGE2"  ,"emissiveMult":1.0     }
 -    ,   { "textureName":"NUKAGE3"  ,"emissiveMult":1.0     }

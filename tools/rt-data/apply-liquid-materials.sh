@@ -57,6 +57,10 @@ mirror_line() {
     printf '    ,   { "textureName":"%s" ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }' "$1"
 }
 
+lava_line() {
+    printf '    ,   { "textureName":"%s"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }' "$1"
+}
+
 ensure_entry_after "SWATER1"  "FWATER4"  "$(mirror_line "SWATER1")"
 ensure_entry_after "SWATER2"  "SWATER1"  "$(mirror_line "SWATER2")"
 ensure_entry_after "SWATER3"  "SWATER2"  "$(mirror_line "SWATER3")"
@@ -93,6 +97,17 @@ ensure_entry_after "SLIME14"  "SLIME13"  "$(mirror_line "SLIME14")"
 ensure_entry_after "SLIME15"  "SLIME14"  "$(mirror_line "SLIME15")"
 ensure_entry_after "SLIME16"  "SLIME15"  "$(mirror_line "SLIME16")"
 
+ensure_entry_after "FLTLAVA1" "LAVA4"    "$(lava_line "FLTLAVA1")"
+ensure_entry_after "FLTLAVA2" "FLTLAVA1" "$(lava_line "FLTLAVA2")"
+ensure_entry_after "FLTLAVA3" "FLTLAVA2" "$(lava_line "FLTLAVA3")"
+ensure_entry_after "FLTLAVA4" "FLTLAVA3" "$(lava_line "FLTLAVA4")"
+ensure_entry_after "FLATHUH1" "FLTLAVA4" "$(lava_line "FLATHUH1")"
+ensure_entry_after "X_001"    "FLATHUH1" "$(lava_line "X_001")"
+ensure_entry_after "X_002"    "X_001"    "$(lava_line "X_002")"
+ensure_entry_after "X_003"    "X_002"    "$(lava_line "X_003")"
+ensure_entry_after "X_004"    "X_003"    "$(lava_line "X_004")"
+
+perl -pi -e 's/\{ "textureName":"LAVA([1234])"\s*,"emissiveMult":1\.0\s*\}/{ "textureName":"LAVA$1"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }/' "$textures"
 perl -pi -e 's/\{ "textureName":"NUKAGE([123])"\s*,"emissiveMult":1\.0\s*\}/{ "textureName":"NUKAGE$1"  ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }/' "$textures"
 
 copy_alias() {
@@ -119,6 +134,10 @@ copy_alias FWATER1_n.ktx2 X_005_n.ktx2
 copy_alias NUKAGE1_remix_normal.ktx2 NUKAGE1_n.ktx2
 copy_alias NUKAGE2_remix_normal.ktx2 NUKAGE2_n.ktx2
 copy_alias NUKAGE3_remix_normal.ktx2 NUKAGE3_n.ktx2
+copy_alias LAVA1_remix_normal.ktx2 LAVA1_n.ktx2
+copy_alias LAVA2_remix_normal.ktx2 LAVA2_n.ktx2
+copy_alias LAVA3_remix_normal.ktx2 LAVA3_n.ktx2
+copy_alias LAVA4_remix_normal.ktx2 LAVA4_n.ktx2
 copy_alias FWATER1_n.ktx2 SWATER1_n.ktx2
 copy_alias FWATER2_n.ktx2 SWATER2_n.ktx2
 copy_alias FWATER3_n.ktx2 SWATER3_n.ktx2
@@ -127,6 +146,15 @@ copy_alias SLIME01_n.ktx2 FLTSLUD1_n.ktx2
 copy_alias SLIME02_n.ktx2 FLTSLUD2_n.ktx2
 copy_alias SLIME03_n.ktx2 FLTSLUD3_n.ktx2
 copy_alias SLIME01_n.ktx2 X_009_n.ktx2
+copy_alias LAVA1_n.ktx2 FLTLAVA1_n.ktx2
+copy_alias LAVA2_n.ktx2 FLTLAVA2_n.ktx2
+copy_alias LAVA3_n.ktx2 FLTLAVA3_n.ktx2
+copy_alias LAVA4_n.ktx2 FLTLAVA4_n.ktx2
+copy_alias LAVA1_n.ktx2 FLATHUH1_n.ktx2
+copy_alias LAVA1_n.ktx2 X_001_n.ktx2
+copy_alias LAVA2_n.ktx2 X_002_n.ktx2
+copy_alias LAVA3_n.ktx2 X_003_n.ktx2
+copy_alias LAVA4_n.ktx2 X_004_n.ktx2
 copy_alias FWATER1_n.ktx2 F_WATR01_n.ktx2
 copy_alias FWATER2_n.ktx2 F_WATR02_n.ktx2
 copy_alias FWATER3_n.ktx2 F_WATR03_n.ktx2

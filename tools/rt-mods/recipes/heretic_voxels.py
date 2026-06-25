@@ -14,10 +14,12 @@ VARIANTS = {
     "lite": {
         "filename": "reikallravenvoxelslite.pk3",
         "sha256": "03da4e089a9577002050cab94db6c5a02747d71a8ca08951d902bbaae03e67d9",
+        "version_key": "reikall-lite-03da4e08",
     },
     "full": {
         "filename": "reikallhereticvoxels.pk3",
         "sha256": "f55ce7cd1de4708dd4e78fb9e5f74a1cb4a7b8edffef0ee6d0a1e22ef254a6b9",
+        "version_key": "reikall-full-f55ce7cd",
     },
 }
 
@@ -33,6 +35,18 @@ LOCAL_PK3_NAMES = [
 
 
 warnings.filterwarnings("ignore", message="Duplicate name:.*", category=UserWarning)
+
+
+def default_library():
+    return Path(os.environ.get("RT_MODS_DIR", "~/Games/gzdoom-rt/mods")).expanduser()
+
+
+def source_path(library, variant):
+    return library / MOD_ID / variant["version_key"] / variant["filename"]
+
+
+def default_heretic_iwad():
+    return Path(os.environ.get("HERETIC_IWAD", "~/Games/gzdoom-rt/wad/heretic.wad")).expanduser()
 
 
 def sha256_file(path):
@@ -332,7 +346,7 @@ def build_package(source_pk3, target_pk3, iwad_path, textures_json):
     return dropped, added_aliases, removed_old_aliases
 
 
-def uninstall(target_dir, textures_json, source_dir):
+def uninstall(target_dir, textures_json, library):
     alias_names = set()
     removed_files = []
 
@@ -342,7 +356,7 @@ def uninstall(target_dir, textures_json, source_dir):
             alias_names.update(collect_alias_names_from_pk3(local_pk3))
 
     for variant in VARIANTS.values():
-        source_pk3 = source_dir / variant["filename"]
+        source_pk3 = source_path(library, variant)
         if source_pk3.is_file():
             alias_names.update(collect_alias_names_from_pk3(source_pk3))
 
@@ -363,9 +377,9 @@ def parse_args():
     parser.add_argument("--repo-root", default=str(Path(__file__).resolve().parents[3]))
     parser.add_argument("--variant", choices=sorted(VARIANTS), default="lite")
     parser.add_argument(
-        "--source",
-        default=os.environ.get("HERETIC_VOXEL_DIR", "/home/rgrabowski/Work/doom/heretic-voxel"),
-        help="Directory containing the original external voxel PK3s.",
+        "--library",
+        default=str(default_library()),
+        help="External mod library. Defaults to $RT_MODS_DIR or ~/Games/gzdoom-rt/mods.",
     )
     parser.add_argument(
         "--rt-dir",
@@ -374,8 +388,8 @@ def parse_args():
     )
     parser.add_argument(
         "--iwad",
-        default=os.environ.get("HERETIC_IWAD"),
-        help="Heretic IWAD used for sprite-name validation. Defaults to <repo-root>/../wad/heretic.wad.",
+        default=str(default_heretic_iwad()),
+        help="Heretic IWAD used for sprite-name validation. Defaults to $HERETIC_IWAD or ~/Games/gzdoom-rt/wad/heretic.wad.",
     )
     parser.add_argument(
         "--allow-unknown-checksum",
@@ -394,17 +408,17 @@ def main():
     args = parse_args()
     repo_root = Path(args.repo_root).resolve()
     rt_dir = Path(args.rt_dir).resolve() if args.rt_dir else repo_root / "rt"
-    iwad_path = Path(args.iwad).resolve() if args.iwad else repo_root / "../wad/heretic.wad"
-    source_dir = Path(args.source).expanduser().resolve()
+    iwad_path = Path(args.iwad).expanduser().resolve()
+    library = Path(args.library).expanduser().resolve()
 
     variant = VARIANTS[args.variant]
-    source_pk3 = source_dir / variant["filename"]
+    source_pk3 = source_path(library, variant)
     target_dir = rt_dir / "autoload" / "heretic"
     target_pk3 = target_dir / f"{source_pk3.stem}-rt.pk3"
     textures_json = rt_dir / "data" / "textures.json"
 
     if args.uninstall:
-        removed_files, removed_blocks, removed_legacy, alias_count = uninstall(target_dir, textures_json, source_dir)
+        removed_files, removed_blocks, removed_legacy, alias_count = uninstall(target_dir, textures_json, library)
         if removed_files:
             print("Removed generated/local Heretic voxel packages:")
             for path in removed_files:
