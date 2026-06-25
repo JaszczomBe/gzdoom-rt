@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <dlfcn.h>
 #include <cstdio>
+#include <string>
 
 namespace
 {
@@ -29,9 +30,18 @@ RgResult RT_DlopenAndCreateXlib(const RgInstanceCreateInfo* pInfo,
     }
 
     const char* explicitPath = getenv("RTGL1_LIBRARY_PATH");
+    std::string runtimeDebugPath;
+    std::string runtimePath;
+    if (pInfo && pInfo->pOverrideFolderPath)
+    {
+        runtimeDebugPath = std::string(pInfo->pOverrideFolderPath) + "bin/debug/libRTGL1.so";
+        runtimePath = std::string(pInfo->pOverrideFolderPath) + "bin/libRTGL1.so";
+    }
     const char* candidates[] = {
         explicitPath,
         isdebug ? "build-rtgl-linux/libRTGL1.so" : nullptr,
+        isdebug && !runtimeDebugPath.empty() ? runtimeDebugPath.c_str() : nullptr,
+        !runtimePath.empty() ? runtimePath.c_str() : nullptr,
         "rt/bin/debug/libRTGL1.so",
         "rt/bin/libRTGL1.so",
         "libRTGL1.so",

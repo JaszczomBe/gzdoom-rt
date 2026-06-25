@@ -9,11 +9,6 @@
             "args": [
                 "-config",
                 "${workspaceFolder}/gzdoom-linux.ini",
-                "-file",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_support.pk3",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_widescreen_gfx.pk3",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/brightmaps.pk3",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/lights.pk3",
                 "+r_drawvoxels",
                 "1"
             ],
@@ -26,7 +21,7 @@
                 },
                 {
                     "name": "DOOMWADDIR",
-                    "value": "${workspaceFolder}/../wad"
+                    "value": "${env:HOME}/Games/gzdoom-rt/wad"
                 }
             ],
             "externalConsole": false,
@@ -41,7 +36,7 @@
                     },
                     {
                         "name": "DOOMWADDIR",
-                        "value": "${workspaceFolder}/../wad"
+                        "value": "${env:HOME}/Games/gzdoom-rt/wad"
                     }
                 ],
                 "MIMode": "lldb",
@@ -55,12 +50,7 @@
             "program": "${command:cmake.buildDirectory}/rt/gzdoom",
             "args": [
                 "-config",
-                "${workspaceFolder}/gzdoom-rt-linux.ini",
-                "-file",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_support.pk3",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/game_widescreen_gfx.pk3",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/brightmaps.pk3",
-                "${workspaceFolder}/../gzdoom-rt-1.0.2/lights.pk3"
+                "${workspaceFolder}/gzdoom-rt-linux.ini"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -71,7 +61,15 @@
                 },
                 {
                     "name": "DOOMWADDIR",
-                    "value": "${workspaceFolder}/../wad"
+                    "value": "${env:HOME}/Games/gzdoom-rt/wad"
+                },
+                {
+                    "name": "GZDOOM_RT_ASSET_DIR",
+                    "value": "${env:HOME}/Games/gzdoom-rt/assets/gzdoom-rt-runtime/1.0.2/rt"
+                },
+                {
+                    "name": "GZDOOM_RT_RUNTIME_DIR",
+                    "value": "${env:HOME}/.cache/gzdoom-rt/runtime/current"
                 },
                 {
                     "name": "RTGL1_SDK_PATH",

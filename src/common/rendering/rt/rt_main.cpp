@@ -2151,7 +2151,7 @@ void RT_InitInstance(RgWin32SurfaceCreateInfo* win32Info, void* xlibDisplay, uns
         .pWin32SurfaceInfo = win32Info,
         .pXlibSurfaceCreateInfo  = nullptr,
 
-        .pOverrideFolderPath = "rt/",
+        .pOverrideFolderPath = RT_ResolveRuntimePath(),
 
         .pfnPrint = RT_Print, .pUserPrintData = nullptr,
         .allowedMessages =

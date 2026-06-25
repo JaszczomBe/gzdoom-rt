@@ -1953,11 +1953,12 @@ static void GetCmdLineFiles(std::vector<std::string>& wadfiles)
 	}
 
 #if HAVE_RT
-	if (!DirEntryExists("rt/wad"))
+	const char* rtWad = RT_ResolveRuntimeSubpath("wad");
+	if (!DirEntryExists(rtWad))
 	{
-		I_FatalError("Can't find rt/wad directory");
+		I_FatalError("Can't find RT runtime wad directory: %s", rtWad);
 	}
-	D_AddWildFile(wadfiles, "rt/wad", nullptr /* ignored */, GameConfig);
+	D_AddWildFile(wadfiles, rtWad, nullptr /* ignored */, GameConfig);
 #endif
 }
 
@@ -2247,12 +2248,12 @@ static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& all
 		}
 
 #if HAVE_RT
-		addRTAutoloadPackages("rt/autoload/global");
+		addRTAutoloadPackages(RT_ResolveRuntimeSubpath("autoload/global"));
 
 		lastpos = -1;
 		while ((len = LumpFilterIWAD.IndexOf('.', lastpos+1)) > 0)
 		{
-			file.Format("rt/autoload/%s", LumpFilterIWAD.Left(len).GetChars());
+			file.Format("%s/autoload/%s", RT_ResolveRuntimePath(), LumpFilterIWAD.Left(len).GetChars());
 			addRTAutoloadPackages(file.GetChars());
 			lastpos = len;
 		}
