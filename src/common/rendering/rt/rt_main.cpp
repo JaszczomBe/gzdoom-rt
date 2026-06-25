@@ -117,6 +117,7 @@ namespace cvar
     RT_CVAR( rt_autoexport,             true,   "if true: if map's gltf doesn't exist on disk, export to gltf "
                                                 "and process the map as if it's static (which improves performance / stability)" )
     RT_CVAR( rt_autoexport_light,       200.f,  "On auto export to gltf, apply this multiplier to the sector light intensities" ) 
+    RT_CVAR( rt_static_ignore_polyobjects, true, "ignore external static scenes on maps with polyobjects, so moving walls and doors stay in live geometry" )
 
     RT_CVAR( rt_classic,                0.f,    "[0.0,1.0] what portion of the screen to render with a classic mode" )
     RT_CVAR( rt_classic_mus,            true,   "if true, apply high pass filter to music when classic mode is enabled" )
@@ -435,6 +436,11 @@ const char* RT_GetMapName()
     }
 
     return nullptr;
+}
+
+static bool RT_ShouldIgnoreExternalGeometry()
+{
+    return cvar::rt_static_ignore_polyobjects && primaryLevel && primaryLevel->Polyobjects.Size() > 0;
 }
 
 bool RT_ForceNoClassicMode()
@@ -3226,15 +3232,16 @@ void RTFrameBuffer::RT_BeginFrame()
     };
 
     RgStaticSceneStatusFlags staticscene_status = 0;
+    const bool ignore_external_geometry = RT_ShouldIgnoreExternalGeometry();
 
     auto info = RgStartFrameInfo{
         .sType                  = RG_STRUCTURE_TYPE_START_FRAME_INFO,
         .pNext                  = &fluid_params,
         .pMapName               = RT_GetMapName(),
-        .ignoreExternalGeometry = false,
+        .ignoreExternalGeometry = ignore_external_geometry,
         .vsync                  = cvar::rt_vsync,
         .hdr                    = cvar::rt_hdr_available ? cvar::rt_hdr : false,
-        .allowMapAutoExport     = cvar::rt_autoexport,
+        .allowMapAutoExport     = cvar::rt_autoexport && !ignore_external_geometry,
         .lightmapScreenCoverage = RT_ForceNoClassicMode() ? 0.0f : cvar::rt_classic,
         .lightstyleValuesCount  = uint32_t( g_sectorlightlevels.size() ),
         .pLightstyleValues8     = g_sectorlightlevels.data(),
@@ -4167,6 +4174,11 @@ bool RT_IsWallExportable( const seg_t* seg, const std::vector< bool >& animatedT
     if( !seg )
     {
         assert( 0 );
+        return false;
+    }
+
+    if( seg->sidedef && ( seg->sidedef->Flags & WALLF_POLYOBJ ) )
+    {
         return false;
     }
 
