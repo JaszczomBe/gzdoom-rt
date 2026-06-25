@@ -2167,6 +2167,22 @@ static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& all
 {
 	LumpFilterIWAD.Format("%s.", autoname);	// The '.' is appened to simplify parsing the string 
 
+#if HAVE_RT
+	auto addRTAutoloadPackages = [&allwads](const char *dir)
+	{
+		FString pattern;
+
+		pattern.Format("%s/*.wad", dir);
+		D_AddWildFile(allwads, pattern.GetChars(), nullptr, GameConfig);
+
+		pattern.Format("%s/*.pk3", dir);
+		D_AddWildFile(allwads, pattern.GetChars(), nullptr, GameConfig);
+
+		pattern.Format("%s/*.pk7", dir);
+		D_AddWildFile(allwads, pattern.GetChars(), nullptr, GameConfig);
+	};
+#endif
+
 	// [SP] Dialog reaction - load lights.pk3 and brightmaps.pk3 based on user choices
 	if (!(gameinfo.flags & GI_SHAREWARE) && !(Args->CheckParm("-noextras")))
 	{
@@ -2229,6 +2245,18 @@ static void AddAutoloadFiles(const char *autoname, std::vector<std::string>& all
 			D_AddConfigFiles(allwads, file.GetChars(), "*.wad", GameConfig);
 			lastpos = len;
 		}
+
+#if HAVE_RT
+		addRTAutoloadPackages("rt/autoload/global");
+
+		lastpos = -1;
+		while ((len = LumpFilterIWAD.IndexOf('.', lastpos+1)) > 0)
+		{
+			file.Format("rt/autoload/%s", LumpFilterIWAD.Left(len).GetChars());
+			addRTAutoloadPackages(file.GetChars());
+			lastpos = len;
+		}
+#endif
 	}
 }
 
