@@ -5,6 +5,7 @@
 #include "c_cvars.h"
 
 #include <cstdlib>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -21,9 +22,10 @@ CVAR(Bool, rt_runtime_autoprepare, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
 namespace
 {
-constexpr std::string_view kCompatVersion = "compat-1";
+constexpr std::string_view kCompatVersion = "compat-9";
 
 std::string g_runtimePath;
+std::string g_runtimeSource;
 std::string g_subpath;
 
 bool Exists(const fs::path& path)
@@ -43,6 +45,32 @@ bool ValidRuntime(const fs::path& path)
     return IsDir(path / "wad") && IsDir(path / "data") && IsDir(path / "mat") &&
            IsDir(path / "shaders") && Exists(path / "data" / "textures.json") &&
            Exists(path / "BlueNoise_LDR_RGBA_128.ktx2") && Exists(path / "WaterNormal_n.ktx2");
+}
+
+bool RuntimeCompatCurrent(const fs::path& path)
+{
+    fs::path manifest = path / ".gzdoom-rt-runtime";
+    if (!Exists(manifest))
+    {
+        return true;
+    }
+
+    std::ifstream in(manifest);
+    if (!in)
+    {
+        return true;
+    }
+
+    std::string line;
+    while (std::getline(in, line))
+    {
+        constexpr std::string_view prefix = "compat=";
+        if (line.rfind(prefix, 0) == 0)
+        {
+            return line.substr(prefix.size()) == kCompatVersion;
+        }
+    }
+    return true;
 }
 
 const char* Env(const char* name)
@@ -293,8 +321,9 @@ bool BasicPrepareRuntime(const fs::path& source, const fs::path& runtime)
 fs::path PrepareOrFallback()
 {
     fs::path runtime = PreferredRuntimePath();
-    if (ValidRuntime(runtime))
+    if (ValidRuntime(runtime) && RuntimeCompatCurrent(runtime))
     {
+        g_runtimeSource = "prepared-runtime";
         return runtime;
     }
 
@@ -303,23 +332,23 @@ fs::path PrepareOrFallback()
     {
         if (ValidRuntime("rt"))
         {
+            g_runtimeSource = "local-rt-fallback";
             return "rt";
         }
+        g_runtimeSource = "missing-runtime";
         return runtime;
     }
 
     if (rt_runtime_autoprepare)
     {
-        if (RunPrepareScript(source, runtime) && ValidRuntime(runtime))
+        if (RunPrepareScript(source, runtime) && ValidRuntime(runtime) && RuntimeCompatCurrent(runtime))
         {
-            return runtime;
-        }
-        if (BasicPrepareRuntime(source, runtime))
-        {
+            g_runtimeSource = "prepared-runtime";
             return runtime;
         }
     }
 
+    g_runtimeSource = "asset-source-fallback";
     return source;
 }
 
@@ -339,6 +368,13 @@ auto RT_ResolveRuntimePath() -> const char*
     if (g_runtimePath.empty())
     {
         g_runtimePath = WithTrailingSlash(PrepareOrFallback());
+        std::fprintf(stderr, "GZDoom RT runtime: %s (%s)\n", g_runtimePath.c_str(), g_runtimeSource.c_str());
+        if (g_runtimeSource == "asset-source-fallback" || g_runtimeSource == "local-rt-fallback")
+        {
+            std::fprintf(stderr,
+                         "GZDoom RT warning: using an unprepared RT asset source; generated compatibility "
+                         "patches may be missing.\n");
+        }
     }
     return g_runtimePath.c_str();
 }

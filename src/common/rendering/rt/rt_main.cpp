@@ -465,6 +465,53 @@ const char* RT_GetMapName()
     return nullptr;
 }
 
+static bool RT_TextureNameEquals( const char* lhs, const char* rhs )
+{
+    if( !lhs || !rhs )
+    {
+        return false;
+    }
+
+    for( ; *lhs && *rhs; lhs++, rhs++ )
+    {
+        const unsigned char a = static_cast< unsigned char >( *lhs );
+        const unsigned char b = static_cast< unsigned char >( *rhs );
+        if( std::toupper( a ) != std::toupper( b ) )
+        {
+            return false;
+        }
+    }
+
+    return *lhs == '\0' && *rhs == '\0';
+}
+
+static constexpr const char* RT_EXPLICIT_LAVA_FLAT_TEXTURES[] = {
+    "FLTLAVA1", "FLTLAVA2", "FLTLAVA3", "FLTLAVA4", "FLATHUH1",
+    "X_001",    "X_002",    "X_003",    "X_004",
+};
+
+static const char* RT_CanonicalExplicitLavaFlatTexture( const char* texname )
+{
+    for( const char* canonical : RT_EXPLICIT_LAVA_FLAT_TEXTURES )
+    {
+        if( RT_TextureNameEquals( texname, canonical ) )
+        {
+            return canonical;
+        }
+    }
+    return nullptr;
+}
+
+static bool RT_IsExplicitLavaFlatTexture( const char* texname )
+{
+    return RT_CanonicalExplicitLavaFlatTexture( texname ) != nullptr;
+}
+
+static bool RT_ShouldForceLavaFloorTexture( const char* texname )
+{
+    return RT_IsExplicitLavaFlatTexture( texname );
+}
+
 static bool RT_ShouldIgnoreExternalGeometry()
 {
     return cvar::rt_static_ignore_polyobjects && primaryLevel && primaryLevel->Polyobjects.Size() > 0;
@@ -1031,6 +1078,14 @@ public:
 
         m_created = true;
         m_name    = MakeTextureName( src );
+        if( RT_IsExplicitLavaFlatTexture( m_name.c_str() ) )
+        {
+            m_classic_name = m_name;
+            for( char& ch : m_classic_name )
+            {
+                ch = static_cast< char >( std::tolower( static_cast< unsigned char >( ch ) ) );
+            }
+        }
 
         if( m_name.empty() || !src.GetTexture() )
         {
@@ -1071,6 +1126,14 @@ public:
 
         RgResult r = rt.rgProvideOriginalTexture( &info );
         RG_CHECK( r );
+
+        if( !m_classic_name.empty() )
+        {
+            info.pTextureName = m_classic_name.c_str();
+
+            r = rt.rgProvideOriginalTexture( &info );
+            RG_CHECK( r );
+        }
     }
 
     ~RTHardwareTexture() override
@@ -1087,13 +1150,23 @@ public:
         return m_created && !m_name.empty() ? m_name.c_str() : nullptr;
     }
 
+    auto GetRTClassicName() const -> const char*
+    {
+        return m_created && !m_classic_name.empty() ? m_classic_name.c_str() : nullptr;
+    }
+
 private:
     static auto MakeTextureName( FGameTexture& fgametex ) -> std::string
     {
         // highest priority: FGameTexture name
         if( !fgametex.GetName().IsEmpty() )
         {
-            return fgametex.GetName().GetChars();
+            const char* name = fgametex.GetName().GetChars();
+            if( const char* canonical = RT_CanonicalExplicitLavaFlatTexture( name ) )
+            {
+                return canonical;
+            }
+            return name;
         }
 
         // if no lump name, stringify the image ID;
@@ -1117,6 +1190,7 @@ private:
 private:
     bool        m_created{ false };
     std::string m_name{};
+    std::string m_classic_name{};
 };
 
 
@@ -1587,7 +1661,8 @@ private:
             return;
         }
 
-        const char* texname = nullptr;
+        const bool  fullClassicMode = !RT_ForceNoClassicMode() && float( cvar::rt_classic ) >= 0.999f;
+        const char* texname         = nullptr;
         if( mTextureEnabled && mMaterial.mMaterial )
         {
             if( FGameTexture* gametex = mMaterial.mMaterial->sourcetex )
@@ -1602,7 +1677,9 @@ private:
                                               mMaterial.mTranslation,
                                               mMaterial.mMaterial->GetScaleFlags(),
                                               mRenderStyle );
-                        texname = hwtex->GetRTName();
+                        texname = fullClassicMode && hwtex->GetRTClassicName()
+                                      ? hwtex->GetRTClassicName()
+                                      : hwtex->GetRTName();
                     }
                 }
             }
@@ -1658,6 +1735,9 @@ private:
         {
             transform = MakeTransform( rtstate.is< RtPrim::Sky >() );
         }
+
+        const bool forceLavaFloorTexture =
+            !fullClassicMode && RT_ShouldForceLavaFloorTexture( texname );
 
         auto ui = RgMeshPrimitiveSwapchainedEXT{
             .sType       = RG_STRUCTURE_TYPE_MESH_PRIMITIVE_SWAPCHAINED_EXT,
@@ -1719,7 +1799,7 @@ private:
             .localLightsIntensity = MapLightLevel( rtstate.m_lightlevel ),
         };
 
-        auto makePrimFlags = [ this, &verts ]( bool isUI ) -> RgMeshPrimitiveFlags {
+        auto makePrimFlags = [ this, &verts, forceLavaFloorTexture ]( bool isUI ) -> RgMeshPrimitiveFlags {
             if( isUI )
             {
                 return RG_MESH_PRIMITIVE_TRANSLUCENT;
@@ -1749,6 +1829,10 @@ private:
             {
                 return RG_MESH_PRIMITIVE_GLASS;
             }
+            if( forceLavaFloorTexture )
+            {
+                return RG_MESH_PRIMITIVE_WATER;
+            }
 
             RgMeshPrimitiveFlags add;
             switch( int( cvar::rt_wall_nomv ) )
@@ -1768,7 +1852,8 @@ private:
         // HACKHACK: replacements are ignored if a prim is rasterized, force alpha=1.0
         const bool forcealpha1 = ( mesh.flags & RG_MESH_FORCE_GLASS ) ||
                                  ( mesh.flags & RG_MESH_FORCE_MIRROR ) ||
-                                 ( mesh.flags & RG_MESH_FORCE_WATER );
+                                 ( mesh.flags & RG_MESH_FORCE_WATER ) ||
+                                 forceLavaFloorTexture;
 
         auto prim = RgMeshPrimitiveInfo{
             .sType = RG_STRUCTURE_TYPE_MESH_PRIMITIVE_INFO,
@@ -1787,9 +1872,12 @@ private:
             .color =
                 rtcolor_multiply( mStreamData.uObjectColor, mStreamData.uVertexColor, forcealpha1 ),
             .emissive =
-                ( mRenderStyle.BlendOp == STYLEOP_Add && mRenderStyle.DestAlpha == STYLEALPHA_One )
-                    ? cvar::rt_emis_additive_dflt
-                    : 0.f,
+                forceLavaFloorTexture
+                    ? 1.0f
+                    : ( ( mRenderStyle.BlendOp == STYLEOP_Add &&
+                          mRenderStyle.DestAlpha == STYLEALPHA_One )
+                            ? cvar::rt_emis_additive_dflt
+                            : 0.f ),
             .classicLight = lightlevel_to_classic( isUI, mLightParms[ 3 ] ),
         };
 

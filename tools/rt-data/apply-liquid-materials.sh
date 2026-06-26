@@ -58,8 +58,45 @@ mirror_line() {
 }
 
 lava_line() {
-    printf '    ,   { "textureName":"%s"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }' "$1"
+    printf '    ,   { "textureName":"%s"    ,"emissiveMult":0.45    ,"isWater":true     ,"metallicDefault":0.0  ,"roughnessDefault":0.25 ,"lightIntensity":600  ,"lightColorHEX":"ff4d20" ,"lightEvenOnDynamic":true }' "$1"
 }
+
+lava_floor_textures=(
+    FLTLAVA1
+    FLTLAVA2
+    FLTLAVA3
+    FLTLAVA4
+    FLATHUH1
+    X_001
+    X_002
+    X_003
+    X_004
+)
+
+replace_entry() {
+    local name="$1"
+    local line="$2"
+    local tmp
+
+    if ! grep -q "\"textureName\":\"$name\"" "$textures"; then
+        return 0
+    fi
+
+    tmp="$(mktemp)"
+    awk -v name="\"textureName\":\"$name\"" -v line="$line" '
+        index($0, name) {
+            print line
+            next
+        }
+        { print }
+    ' "$textures" > "$tmp"
+    mv "$tmp" "$textures"
+}
+
+# Doom uses LAVA1-LAVA4 as flats, but Heretic uses LAVA1 as a wall texture for
+# lavafalls. Keep the shared bare names non-liquid and non-emissive; explicit
+# floor lava aliases and patched static-scene floor materials carry the glow.
+perl -pi -e 's/\{ "textureName":"LAVA([1234])"[^}]*\}/{ "textureName":"LAVA$1"    ,"emissiveMult":0.0     }/' "$textures"
 
 ensure_entry_after "SWATER1"  "FWATER4"  "$(mirror_line "SWATER1")"
 ensure_entry_after "SWATER2"  "SWATER1"  "$(mirror_line "SWATER2")"
@@ -97,17 +134,16 @@ ensure_entry_after "SLIME14"  "SLIME13"  "$(mirror_line "SLIME14")"
 ensure_entry_after "SLIME15"  "SLIME14"  "$(mirror_line "SLIME15")"
 ensure_entry_after "SLIME16"  "SLIME15"  "$(mirror_line "SLIME16")"
 
-ensure_entry_after "FLTLAVA1" "LAVA4"    "$(lava_line "FLTLAVA1")"
-ensure_entry_after "FLTLAVA2" "FLTLAVA1" "$(lava_line "FLTLAVA2")"
-ensure_entry_after "FLTLAVA3" "FLTLAVA2" "$(lava_line "FLTLAVA3")"
-ensure_entry_after "FLTLAVA4" "FLTLAVA3" "$(lava_line "FLTLAVA4")"
-ensure_entry_after "FLATHUH1" "FLTLAVA4" "$(lava_line "FLATHUH1")"
-ensure_entry_after "X_001"    "FLATHUH1" "$(lava_line "X_001")"
-ensure_entry_after "X_002"    "X_001"    "$(lava_line "X_002")"
-ensure_entry_after "X_003"    "X_002"    "$(lava_line "X_003")"
-ensure_entry_after "X_004"    "X_003"    "$(lava_line "X_004")"
+previous_lava_texture="LAVA4"
+for lava_texture in "${lava_floor_textures[@]}"; do
+    ensure_entry_after "$lava_texture" "$previous_lava_texture" "$(lava_line "$lava_texture")"
+    previous_lava_texture="$lava_texture"
+done
 
-perl -pi -e 's/\{ "textureName":"LAVA([1234])"\s*,"emissiveMult":1\.0\s*\}/{ "textureName":"LAVA$1"    ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }/' "$textures"
+for lava_texture in "${lava_floor_textures[@]}"; do
+    replace_entry "$lava_texture" "$(lava_line "$lava_texture")"
+done
+
 perl -pi -e 's/\{ "textureName":"NUKAGE([123])"\s*,"emissiveMult":1\.0\s*\}/{ "textureName":"NUKAGE$1"  ,"emissiveMult":1.0     ,"isMirror":true    ,"metallicDefault":1.0  ,"roughnessDefault":0.0 }/' "$textures"
 
 copy_alias() {
@@ -146,15 +182,9 @@ copy_alias SLIME01_n.ktx2 FLTSLUD1_n.ktx2
 copy_alias SLIME02_n.ktx2 FLTSLUD2_n.ktx2
 copy_alias SLIME03_n.ktx2 FLTSLUD3_n.ktx2
 copy_alias SLIME01_n.ktx2 X_009_n.ktx2
-copy_alias LAVA1_n.ktx2 FLTLAVA1_n.ktx2
-copy_alias LAVA2_n.ktx2 FLTLAVA2_n.ktx2
-copy_alias LAVA3_n.ktx2 FLTLAVA3_n.ktx2
-copy_alias LAVA4_n.ktx2 FLTLAVA4_n.ktx2
-copy_alias LAVA1_n.ktx2 FLATHUH1_n.ktx2
-copy_alias LAVA1_n.ktx2 X_001_n.ktx2
-copy_alias LAVA2_n.ktx2 X_002_n.ktx2
-copy_alias LAVA3_n.ktx2 X_003_n.ktx2
-copy_alias LAVA4_n.ktx2 X_004_n.ktx2
+for lava_texture in "${lava_floor_textures[@]}"; do
+    rm -f "$mat_dir/${lava_texture}_n.ktx2"
+done
 copy_alias FWATER1_n.ktx2 F_WATR01_n.ktx2
 copy_alias FWATER2_n.ktx2 F_WATR02_n.ktx2
 copy_alias FWATER3_n.ktx2 F_WATR03_n.ktx2

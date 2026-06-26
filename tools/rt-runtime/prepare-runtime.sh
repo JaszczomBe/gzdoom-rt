@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repo_root="$(CDPATH= cd -- "$script_dir/../.." && pwd)"
-compat_version="compat-1"
+compat_version="compat-9"
 
 usage() {
     cat <<'USAGE'
@@ -37,7 +37,9 @@ if [[ -z "$target_arg" ]]; then
 fi
 
 source_rt="$(realpath -m "$source_rt")"
-target_arg="$(realpath -m "$target_arg")"
+target_parent="$(dirname "$target_arg")"
+target_name="$(basename "$target_arg")"
+target_arg="$(realpath -m "$target_parent")/$target_name"
 
 require_path() {
     local path="$1"
@@ -113,6 +115,86 @@ find "$source_rt/mat" -mindepth 1 -maxdepth 1 -print0 |
 
 cp -a "$source_rt/data" "$tmp_dir/data"
 mkdir -p "$tmp_dir/autoload"
+
+patch_static_scenes() {
+    local scenes_src="$source_rt/scenes"
+    local scenes_dst="$tmp_dir/scenes"
+
+    if [[ ! -d "$scenes_src" ]]; then
+        return 0
+    fi
+
+    if [[ -L "$scenes_dst" ]]; then
+        rm "$scenes_dst"
+        mkdir -p "$scenes_dst"
+        find "$scenes_src" -mindepth 1 -maxdepth 1 -print0 |
+            while IFS= read -r -d '' item; do
+                ln -s "$item" "$scenes_dst/$(basename "$item")"
+            done
+    fi
+
+    find "$scenes_dst" -mindepth 1 -maxdepth 1 -print0 |
+        while IFS= read -r -d '' scene_dst; do
+            local scene_name
+            local scene_src
+            local gltf
+
+            scene_name="$(basename "$scene_dst")"
+            scene_src="$scenes_src/$scene_name"
+            gltf="$scene_dst/$scene_name.gltf"
+
+            case "$scene_name" in
+                heretic_wad_*) ;;
+                *) continue ;;
+            esac
+
+            if [[ ! -f "$gltf" ]] ||
+                ! grep -Eq 'mat_junction/LAVA[1-4]\.tga' "$gltf"; then
+                continue
+            fi
+
+            if [[ -L "$scene_dst" ]]; then
+                rm "$scene_dst"
+                cp -a "$scene_src" "$scene_dst"
+                gltf="$scene_dst/$scene_name.gltf"
+            fi
+
+            python3 - "$gltf" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    data = json.load(fh)
+
+images = data.get("images", [])
+textures = data.get("textures", [])
+lavafall_uris = {f"mat_junction/LAVA{i}.tga" for i in range(1, 5)}
+
+for material_index, material in enumerate(data.get("materials", [])):
+    pbr = material.setdefault("pbrMetallicRoughness", {})
+    base = pbr.get("baseColorTexture", {})
+    texture_index = base.get("index")
+    if texture_index is None or texture_index >= len(textures):
+        continue
+    source_index = textures[texture_index].get("source")
+    if source_index is None or source_index >= len(images):
+        continue
+    uri = images[source_index].get("uri", "")
+    if uri in lavafall_uris:
+        material.pop("emissiveFactor", None)
+        material.pop("emissiveTexture", None)
+        pbr["metallicFactor"] = 0
+        pbr["roughnessFactor"] = 1.0
+
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+PY
+        done
+}
+
+patch_static_scenes
 
 bash "$repo_root/tools/rt-data/apply-compatibility-patches.sh" "$tmp_dir"
 
