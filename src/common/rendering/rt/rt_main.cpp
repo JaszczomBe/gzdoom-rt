@@ -383,6 +383,22 @@ void RT_AppendMapMd5( char* dst, size_t& pos, size_t capacity, const uint8_t md5
     }
 }
 
+bool RT_StaticSceneExists( const char* name )
+{
+    if( !name || name[ 0 ] == '\0' )
+    {
+        return false;
+    }
+
+    std::filesystem::path path = RT_ResolveRuntimePath();
+    path /= "scenes";
+    path /= name;
+    path /= std::string( name ) + ".gltf";
+
+    std::error_code ec;
+    return std::filesystem::is_regular_file( path, ec );
+}
+
 
 const char* RT_GetMapName()
 {
@@ -393,7 +409,18 @@ const char* RT_GetMapName()
 
     if( primaryLevel && !primaryLevel->MapName.IsEmpty() )
     {
+        static char legacy_mapname_lower[ 64 ];
         static char mapname_lower[ 256 ];
+
+        size_t legacy_i = 0;
+        RT_AppendMapNamePart(
+            legacy_mapname_lower, legacy_i, std::size( legacy_mapname_lower ), primaryLevel->MapName.GetChars() );
+        legacy_mapname_lower[ std::min( legacy_i, std::size( legacy_mapname_lower ) - 1 ) ] = '\0';
+
+        if( RT_StaticSceneExists( legacy_mapname_lower ) )
+        {
+            return legacy_mapname_lower;
+        }
 
         size_t i = 0;
         const int wadnum =

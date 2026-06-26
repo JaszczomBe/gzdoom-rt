@@ -126,11 +126,14 @@ def collect_doom_sprite_names(iwad_dir):
     return names
 
 
-def pk3_voxel_names(zf):
+def pk3_voxel_names(zf, voxeldef_name):
     names = set()
+    lower_voxeldef = voxeldef_name.lower()
+    slash = lower_voxeldef.rfind("/")
+    prefix = "voxels/" if slash < 0 else f"{lower_voxeldef[:slash + 1]}voxels/"
     for info in zf.infolist():
         lower = info.filename.lower()
-        if lower.startswith("voxels/") and lower.endswith(".kvx"):
+        if lower.startswith(prefix) and lower.endswith(".kvx"):
             names.add(lower.rsplit("/", 1)[-1][:-4])
     return names
 
@@ -228,7 +231,7 @@ def build_runtime_pk3(source_pk3, target_pk3, mode, sprite_names):
     with zipfile.ZipFile(source_pk3, "r") as src, zipfile.ZipFile(
         target_pk3, "w", compression=zipfile.ZIP_DEFLATED
     ) as dst:
-        voxel_names = pk3_voxel_names(src)
+        voxel_names_by_def = {}
         for info in src.infolist():
             if info.is_dir():
                 continue
@@ -236,6 +239,7 @@ def build_runtime_pk3(source_pk3, target_pk3, mode, sprite_names):
                 stripped.append(info.filename)
                 continue
             if mode == "assets-only" and is_voxeldef(info.filename):
+                voxel_names = voxel_names_by_def.setdefault(info.filename, pk3_voxel_names(src, info.filename))
                 text = src.read(info.filename).decode("utf-8", "replace")
                 sanitized, dropped = sanitize_voxeldef(text, sprite_names, voxel_names)
                 dropped_voxeldef.extend((info.filename, sprites, voxel) for sprites, voxel in dropped)
