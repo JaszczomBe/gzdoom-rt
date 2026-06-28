@@ -50,7 +50,10 @@
             "program": "${command:cmake.buildDirectory}/rt/gzdoom",
             "args": [
                 "-config",
-                "${workspaceFolder}/gzdoom-rt-linux.ini"
+                "${workspaceFolder}/gzdoom-rt-linux.ini",
+                "-rtfluiddebug",
+                "+logfile",
+                "/tmp/gzdoom-rt-fluid.log"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -70,6 +73,10 @@
                 {
                     "name": "GZDOOM_RT_RUNTIME_DIR",
                     "value": "${env:HOME}/.cache/gzdoom-rt/runtime/current"
+                },
+                {
+                    "name": "GZDOOM_RT_FLUID_DEBUG",
+                    "value": "1"
                 },
                 {
                     "name": "RTGL1_SDK_PATH",

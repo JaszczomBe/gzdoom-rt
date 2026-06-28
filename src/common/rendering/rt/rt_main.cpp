@@ -66,6 +66,12 @@ FRtState    rtstate = {};
 
 bool g_isremix{ false };
 
+bool RT_FluidDebugLogEnabled()
+{
+    const char* env = std::getenv( "GZDOOM_RT_FLUID_DEBUG" );
+    return Args->CheckParm( "-rtfluiddebug" ) || ( env && env[ 0 ] && env[ 0 ] != '0' );
+}
+
 //
 //
 //
@@ -139,6 +145,11 @@ namespace cvar
 #endif
     RT_CVAR( rt_fluid_budget,         100000,   "(APPLIED ONLY after disabling rt_fluid) fluid simulation particle budget " )
     RT_CVAR( rt_fluid_pradius,          0.1f,   "(APPLIED ONLY after disabling rt_fluid) radis of one particle (in meters) for fluid simulation" )
+    RT_CVAR( rt_fluid_debug_mode,          0,   "fluid debug visualization: 0=off, 1=accepted mask, 2=accepted normal, 3=accepted depth, 4=rejection reasons" )
+    RT_CVAR( rt_fluid_smooth_passes,      -1,   "fluid smoothing passes: -1=default, 0=raw raster output, positive=cap smoothing iterations" )
+    RT_CVAR( rt_fluid_depth_window_scale, 1.15f, "fluid blood visibility depth window, multiplied by particle radius; lower rejects sphere footprint, higher keeps more blood" )
+    RT_CVAR( rt_fluid_min_depth_window,  0.035f, "minimum fluid blood visibility depth window in meters" )
+    RT_CVAR( rt_fluid_surface_normal_cull, 0.72f, "fluid blood surface normal alignment threshold; higher removes round rims, lower keeps more blood" )
     RT_CVAR( rt_fluid_gravity_x,        0.f,    "gravity vector for fluid (horizontal, X), in m/s^2" )
     RT_CVAR( rt_fluid_gravity_y,        0.f,    "gravity vector for fluid (horizontal, Y), in m/s^2" )
     RT_CVAR( rt_fluid_gravity_z,        -9.8f,  "gravity vector for fluid (vertical), in m/s^2" )
@@ -2149,6 +2160,11 @@ void RT_Print( const char* pMessage, RgMessageSeverityFlags flags, void* pUserDa
         return;
     }
 
+    if( RT_FluidDebugLogEnabled() )
+    {
+        Printf( PRINT_LOG, "RTGL: %s\n", pMessage );
+    }
+
     if( flags & RG_MESSAGE_SEVERITY_ERROR )
     {
         DPrintf( DMSG_ERROR, "%s\n", pMessage );
@@ -2255,6 +2271,8 @@ void RT_InitInstance(RgWin32SurfaceCreateInfo* win32Info, void* xlibDisplay, uns
 {
     rt = RgInterface{};
 
+    const bool rtFluidDebug = RT_FluidDebugLogEnabled();
+
     auto info = RgInstanceCreateInfo
     {
         .sType = RG_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pNext = NULL,
@@ -2270,7 +2288,7 @@ void RT_InitInstance(RgWin32SurfaceCreateInfo* win32Info, void* xlibDisplay, uns
 
         .pfnPrint = RT_Print, .pUserPrintData = nullptr,
         .allowedMessages =
-            Args->CheckParm( "-rtdebug" )
+            ( Args->CheckParm( "-rtdebug" ) || rtFluidDebug )
                 ? RgMessageSeverityFlags{ RG_MESSAGE_SEVERITY_VERBOSE | RG_MESSAGE_SEVERITY_INFO |
                                           RG_MESSAGE_SEVERITY_WARNING | RG_MESSAGE_SEVERITY_ERROR }
                 : RgMessageSeverityFlags{ 0 },
@@ -2302,6 +2320,16 @@ void RT_InitInstance(RgWin32SurfaceCreateInfo* win32Info, void* xlibDisplay, uns
         .importedLightIntensityScaleSphere      = 1.0f / 500,
         .importedLightIntensityScaleSpot        = 1.0f / 500,
     };
+
+    if( rtFluidDebug )
+    {
+        Printf( PRINT_LOG,
+                "RT fluid debug: enabled. runtime='%s' env GZDOOM_RT_FLUID_DEBUG=%s\n",
+                info.pOverrideFolderPath ? info.pOverrideFolderPath : "(null)",
+                std::getenv( "GZDOOM_RT_FLUID_DEBUG" )
+                    ? std::getenv( "GZDOOM_RT_FLUID_DEBUG" )
+                    : "(unset)" );
+    }
 
 #ifndef NDEBUG
     constexpr bool isdebug = true;
@@ -3344,7 +3372,93 @@ void RTFrameBuffer::RT_BeginFrame()
                             cvar::rt_blood_color_b },
         .particleBudget = uint32_t( std::max( 0, int( cvar::rt_fluid_budget ) ) ),
         .particleRadius = cvar::rt_fluid_pradius,
+        .debugMode      = uint32_t( std::clamp( int( cvar::rt_fluid_debug_mode ), 0, 4 ) ),
+        .smoothPasses   = int32_t( std::clamp( int( cvar::rt_fluid_smooth_passes ), -1, 32 ) ),
+        .depthWindowScale = std::clamp( float( cvar::rt_fluid_depth_window_scale ), 0.10f, 4.00f ),
+        .minDepthWindow = std::clamp( float( cvar::rt_fluid_min_depth_window ), 0.0f, 0.25f ),
+        .surfaceNormalCull = std::clamp( float( cvar::rt_fluid_surface_normal_cull ), -1.0f, 1.0f ),
     };
+
+    if( RT_FluidDebugLogEnabled() )
+    {
+        static bool  prevValid = false;
+        static bool  prevEnabled = false;
+        static bool  prevAvailable = false;
+        static bool  prevReset = false;
+        static int   prevBudget = 0;
+        static float prevRadius = 0.0f;
+        static int   prevDebugMode = 0;
+        static int   prevSmoothPasses = -1;
+        static float prevDepthWindowScale = 0.0f;
+        static float prevMinDepthWindow = 0.0f;
+        static float prevSurfaceNormalCull = 0.0f;
+        static float prevGravity[ 3 ] = {};
+        static float prevColor[ 3 ] = {};
+
+        const bool changed =
+            !prevValid || prevEnabled != bool( fluid_params.enabled ) ||
+            prevAvailable != bool( cvar::rt_fluid_available ) ||
+            prevReset != bool( fluid_params.reset ) || prevBudget != int( fluid_params.particleBudget ) ||
+            prevRadius != fluid_params.particleRadius ||
+            prevDebugMode != int( fluid_params.debugMode ) ||
+            prevSmoothPasses != int( fluid_params.smoothPasses ) ||
+            prevDepthWindowScale != fluid_params.depthWindowScale ||
+            prevMinDepthWindow != fluid_params.minDepthWindow ||
+            prevSurfaceNormalCull != fluid_params.surfaceNormalCull ||
+            prevGravity[ 0 ] != fluid_params.gravity.data[ 0 ] ||
+            prevGravity[ 1 ] != fluid_params.gravity.data[ 1 ] ||
+            prevGravity[ 2 ] != fluid_params.gravity.data[ 2 ] ||
+            prevColor[ 0 ] != fluid_params.color.data[ 0 ] ||
+            prevColor[ 1 ] != fluid_params.color.data[ 1 ] ||
+            prevColor[ 2 ] != fluid_params.color.data[ 2 ];
+
+        if( changed )
+        {
+            Printf( PRINT_LOG,
+                    "RT fluid frame params: available=%d enabled=%d reset=%d budget=%u "
+                    "radius=%.4f debug_mode=%u smooth_passes=%d "
+                    "depth_window_scale=%.3f min_depth_window=%.4f surface_normal_cull=%.3f "
+                    "gravity=(%.4f %.4f %.4f) materialColor=(%.4f %.4f %.4f) "
+                    "material=prelit-smooth-blood roughness=0.30 edge-erode=1px rim-cull=0.64 "
+                    "center-depth=1 surface-decal=1 tunable-depth-window=1 tunable-surface-normal-cull=1 "
+                    "history-normal=sky reactivity=1 debug-viz=1 "
+                    "reflrefr=off\n",
+                    int( cvar::rt_fluid_available ),
+                    int( fluid_params.enabled ),
+                    int( fluid_params.reset ),
+                    fluid_params.particleBudget,
+                    fluid_params.particleRadius,
+                    fluid_params.debugMode,
+                    fluid_params.smoothPasses,
+                    fluid_params.depthWindowScale,
+                    fluid_params.minDepthWindow,
+                    fluid_params.surfaceNormalCull,
+                    fluid_params.gravity.data[ 0 ],
+                    fluid_params.gravity.data[ 1 ],
+                    fluid_params.gravity.data[ 2 ],
+                    fluid_params.color.data[ 0 ],
+                    fluid_params.color.data[ 1 ],
+                    fluid_params.color.data[ 2 ] );
+
+            prevValid = true;
+            prevEnabled = bool( fluid_params.enabled );
+            prevAvailable = bool( cvar::rt_fluid_available );
+            prevReset = bool( fluid_params.reset );
+            prevBudget = int( fluid_params.particleBudget );
+            prevRadius = fluid_params.particleRadius;
+            prevDebugMode = int( fluid_params.debugMode );
+            prevSmoothPasses = int( fluid_params.smoothPasses );
+            prevDepthWindowScale = fluid_params.depthWindowScale;
+            prevMinDepthWindow = fluid_params.minDepthWindow;
+            prevSurfaceNormalCull = fluid_params.surfaceNormalCull;
+            prevGravity[ 0 ] = fluid_params.gravity.data[ 0 ];
+            prevGravity[ 1 ] = fluid_params.gravity.data[ 1 ];
+            prevGravity[ 2 ] = fluid_params.gravity.data[ 2 ];
+            prevColor[ 0 ] = fluid_params.color.data[ 0 ];
+            prevColor[ 1 ] = fluid_params.color.data[ 1 ];
+            prevColor[ 2 ] = fluid_params.color.data[ 2 ];
+        }
+    }
 
     RgStaticSceneStatusFlags staticscene_status = 0;
     const bool ignore_external_geometry = RT_ShouldIgnoreExternalGeometry();
@@ -4467,8 +4581,25 @@ void RT_SpawnFluid( int             count,
                     const FVector3& velocity,
                     float           dispersionDegrees )
 {
+    const int requestedCount = count;
     if( count <= 0 || !cvar::rt_fluid_available || !cvar::rt_fluid )
     {
+        if( RT_FluidDebugLogEnabled() )
+        {
+            Printf( PRINT_LOG,
+                    "RT fluid spawn skipped: requested=%d available=%d enabled=%d "
+                    "pos_doom=(%.3f %.3f %.3f) vel_doom=(%.3f %.3f %.3f) dispersion=%.3f\n",
+                    requestedCount,
+                    int( cvar::rt_fluid_available ),
+                    int( cvar::rt_fluid ),
+                    position.X,
+                    position.Y,
+                    position.Z,
+                    velocity.X,
+                    velocity.Y,
+                    velocity.Z,
+                    dispersionDegrees );
+        }
         return;
     }
     count = std::min( count, 10000 );
@@ -4489,6 +4620,25 @@ void RT_SpawnFluid( int             count,
             .dispersionAngleDegrees = dispersionDegrees,
             .count                  = uint32_t( count ),
         };
+
+        if( RT_FluidDebugLogEnabled() )
+        {
+            Printf( PRINT_LOG,
+                    "RT fluid spawn: requested=%d clamped=%d pos_m=(%.5f %.5f %.5f) "
+                    "vel_mps=(%.5f %.5f %.5f) radius=%.4f dispersionVelocity=%.3f "
+                    "dispersionAngle=%.3f\n",
+                    requestedCount,
+                    count,
+                    info.position.data[ 0 ],
+                    info.position.data[ 1 ],
+                    info.position.data[ 2 ],
+                    info.velocity.data[ 0 ],
+                    info.velocity.data[ 1 ],
+                    info.velocity.data[ 2 ],
+                    info.radius,
+                    info.dispersionVelocity,
+                    info.dispersionAngleDegrees );
+        }
 
         RgResult r = rt.rgSpawnFluid( &info );
         RG_CHECK( r );
